@@ -1,5 +1,7 @@
 const express = require("express");
 const { OAuth2Client } = require("google-auth-library");
+const multer = require("multer");
+const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const fs = require("fs");
 
@@ -8,16 +10,44 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, "data");
+const UPLOADS_DIR = path.join(__dirname, "uploads");
 const TOKENS_PATH = path.join(DATA_DIR, "tokens.json");
 const CONFIG_PATH = path.join(DATA_DIR, "config.json");
 
 const PICKER_API = "https://photospicker.googleapis.com/v1";
 const CACHE_TTL_MS = 50 * 60 * 1000; // 50 minutes
 
-// Ensure data directory exists
+// Ensure directories exist
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR);
+}
+
+// --- Multer (local uploads) ---
+const ALLOWED_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp", ".heic"]);
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${uuidv4()}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ALLOWED_EXTENSIONS.has(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type ${ext} not allowed`));
+    }
+  },
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
 
 // --- OAuth2 Client ---
 const REDIRECT_URI = () =>
@@ -173,9 +203,13 @@ async function refreshCache() {
 
   try {
     const mediaItems = await fetchAllMediaItems(config.sessionId, accessToken);
+    const allowedIds = config.mediaItemIds
+      ? new Set(config.mediaItemIds)
+      : null;
     photoCache = {
       items: mediaItems
         .filter((item) => item.mediaFile && item.mediaFile.baseUrl)
+        .filter((item) => !allowedIds || allowedIds.has(item.id))
         .map((item) => ({
           id: item.id,
           baseUrl: item.mediaFile.baseUrl,
@@ -196,6 +230,7 @@ function isCacheStale() {
 
 // --- Static Files ---
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/uploads", express.static(UPLOADS_DIR));
 
 // --- Auth Routes ---
 
@@ -346,21 +381,83 @@ app.post("/api/picker/confirm", async (req, res) => {
   }
 });
 
+// --- Local Upload Routes ---
+
+// POST /api/upload — Upload local photos
+app.post("/api/upload", upload.array("photos", 50), (req, res) => {
+  const uploaded = req.files.map((f) => ({
+    filename: f.filename,
+    url: `/uploads/${encodeURIComponent(f.filename)}`,
+  }));
+  res.json({ uploaded });
+});
+
+// DELETE /api/photos/:id — Remove a photo (Google Photos or local)
+app.delete("/api/photos/:id", (_req, res) => {
+  const photoId = _req.params.id;
+
+  // Check if it's a local file
+  const localPath = path.join(UPLOADS_DIR, photoId);
+  if (path.dirname(localPath) === UPLOADS_DIR && fs.existsSync(localPath)) {
+    fs.unlinkSync(localPath);
+    return res.json({ deleted: photoId });
+  }
+
+  // Otherwise remove from Google Photos cache
+  const index = photoCache.items.findIndex((p) => p.id === photoId);
+  if (index === -1) {
+    return res.status(404).json({ error: "Photo not found" });
+  }
+  photoCache.items.splice(index, 1);
+
+  const config = loadConfig();
+  if (config) {
+    config.mediaItemIds = config.mediaItemIds.filter((id) => id !== photoId);
+    saveConfig(config);
+  }
+
+  res.json({ deleted: photoId, photoCount: photoCache.items.length });
+});
+
 // --- Photo Routes ---
 
-// GET /api/photos — Returns photo list (same shape as before for slideshow compatibility)
+// Helper: list local uploaded photos
+function getLocalPhotos() {
+  if (!fs.existsSync(UPLOADS_DIR)) return [];
+  const files = fs.readdirSync(UPLOADS_DIR).filter((f) => {
+    const ext = path.extname(f).toLowerCase();
+    return ALLOWED_EXTENSIONS.has(ext);
+  });
+  files.sort((a, b) => {
+    const statA = fs.statSync(path.join(UPLOADS_DIR, a));
+    const statB = fs.statSync(path.join(UPLOADS_DIR, b));
+    return statB.mtimeMs - statA.mtimeMs;
+  });
+  return files.map((f) => ({
+    id: f,
+    filename: f,
+    url: `/uploads/${encodeURIComponent(f)}`,
+    source: "local",
+  }));
+}
+
+// GET /api/photos — Returns merged list (Google Photos + local uploads)
 app.get("/api/photos", async (_req, res) => {
-  // Refresh cache if stale
+  // Refresh Google Photos cache if stale
   if (isCacheStale() && loadConfig()) {
     await refreshCache();
   }
 
-  const photos = photoCache.items.map((item) => ({
+  const googlePhotos = photoCache.items.map((item) => ({
+    id: item.id,
     filename: item.filename,
     url: `/api/photo/${encodeURIComponent(item.id)}`,
+    source: "google",
   }));
 
-  res.json(photos);
+  const localPhotos = getLocalPhotos();
+
+  res.json([...googlePhotos, ...localPhotos]);
 });
 
 // GET /api/photo/:id — Image proxy: fetches bytes from Google with auth header
@@ -379,7 +476,7 @@ app.get("/api/photo/:id", async (req, res) => {
     }
 
     // Append size parameters to baseUrl for full resolution
-    const imageUrl = `${item.baseUrl}=w2048-h2048`;
+    const imageUrl = `${item.baseUrl}=w2048`;
 
     const response = await fetch(imageUrl, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -391,7 +488,7 @@ app.get("/api/photo/:id", async (req, res) => {
         await refreshCache();
         const refreshedItem = photoCache.items.find((p) => p.id === photoId);
         if (refreshedItem) {
-          const retryUrl = `${refreshedItem.baseUrl}=w2048-h2048`;
+          const retryUrl = `${refreshedItem.baseUrl}=w2048`;
           const retryResponse = await fetch(retryUrl, {
             headers: { Authorization: `Bearer ${accessToken}` },
           });

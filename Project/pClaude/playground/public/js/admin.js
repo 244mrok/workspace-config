@@ -10,6 +10,10 @@
   const photosSection = document.getElementById("photos-section");
   const photoGrid = document.getElementById("photo-grid");
   const emptyState = document.getElementById("empty-state");
+  const dropZone = document.getElementById("drop-zone");
+  const fileInput = document.getElementById("file-input");
+  const progressBar = document.getElementById("progress-bar");
+  const progressFill = progressBar.querySelector(".fill");
 
   let pollTimer = null;
 
@@ -23,23 +27,22 @@
         statusDisconnected.style.display = "none";
         statusConnected.style.display = "block";
         pickerSection.style.display = "block";
-        photosSection.style.display = "block";
 
         if (data.photoCount > 0) {
-          connectedText.textContent = `Connected — ${data.photoCount} photo${data.photoCount !== 1 ? "s" : ""} in slideshow`;
+          connectedText.textContent = `Connected — ${data.photoCount} photo${data.photoCount !== 1 ? "s" : ""} from Google Photos`;
         } else {
           connectedText.textContent = "Connected to Google Photos";
         }
-
-        loadPhotos();
       } else {
         statusDisconnected.style.display = "block";
         statusConnected.style.display = "none";
         pickerSection.style.display = "none";
-        photosSection.style.display = "none";
       }
+
+      loadPhotos();
     } catch (_) {
       statusDisconnected.style.display = "block";
+      loadPhotos();
     }
   }
 
@@ -175,12 +178,101 @@
         img.alt = photo.filename;
         img.loading = "lazy";
 
+        const btn = document.createElement("button");
+        btn.className = "delete-btn";
+        btn.textContent = "\u00d7";
+        btn.title = "Remove from slideshow";
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          deletePhoto(photo.id);
+        });
+
         card.appendChild(img);
+        card.appendChild(btn);
         photoGrid.appendChild(card);
       });
     } catch (_) {
       // Silent fail
     }
+  }
+
+  // --- Delete photo from slideshow ---
+  async function deletePhoto(id) {
+    try {
+      const res = await fetch(`/api/photos/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        checkStatus();
+      } else {
+        alert("Failed to remove photo");
+      }
+    } catch (_) {
+      alert("Failed to remove photo — network error");
+    }
+  }
+
+  // --- Local upload (drag & drop + browse) ---
+  dropZone.addEventListener("click", () => fileInput.click());
+
+  dropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropZone.classList.add("dragover");
+  });
+
+  dropZone.addEventListener("dragleave", () => {
+    dropZone.classList.remove("dragover");
+  });
+
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropZone.classList.remove("dragover");
+    if (e.dataTransfer.files.length > 0) {
+      uploadFiles(e.dataTransfer.files);
+    }
+  });
+
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files.length > 0) {
+      uploadFiles(fileInput.files);
+      fileInput.value = "";
+    }
+  });
+
+  async function uploadFiles(files) {
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append("photos", file);
+    }
+
+    progressBar.style.display = "block";
+    progressFill.style.width = "0%";
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/upload");
+
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        progressFill.style.width = pct + "%";
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      progressBar.style.display = "none";
+      if (xhr.status === 200) {
+        loadPhotos();
+      } else {
+        alert("Upload failed: " + xhr.responseText);
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      progressBar.style.display = "none";
+      alert("Upload failed — network error");
+    });
+
+    xhr.send(formData);
   }
 
   // --- Handle auth callback params ---
