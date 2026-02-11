@@ -35,6 +35,10 @@
   async function fetchPhotos() {
     try {
       const res = await fetch("/api/photos");
+      if (res.status === 401 || res.status === 403) {
+        window.location.href = "/login";
+        return;
+      }
       const data = await res.json();
       photos = data;
       if (photos.length === 0) {

@@ -18,5 +18,6 @@
 !Project/pClaude/playground/package.json
 !Project/pClaude/playground/package-lock.json
 !Project/pClaude/playground/server.js
+!Project/pClaude/playground/auth.js
 !Project/pClaude/playground/public/
 !Project/pClaude/playground/public/**

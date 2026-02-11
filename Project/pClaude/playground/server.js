@@ -1,12 +1,23 @@
 const express = require("express");
+const cookieSession = require("cookie-session");
 const { OAuth2Client } = require("google-auth-library");
 const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const fs = require("fs");
+const auth = require("./auth");
 
 const app = express();
 app.use(express.json());
+
+// --- Session ---
+app.use(
+  cookieSession({
+    name: "session",
+    keys: [process.env.SESSION_SECRET || "dev-secret-change-me"],
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  })
+);
 
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, "data");
@@ -49,10 +60,7 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 },
 });
 
-// --- OAuth2 Client ---
-const REDIRECT_URI = () =>
-  `http://localhost:${PORT}/auth/callback`;
-
+// --- OAuth2 Client (for Photos Picker) ---
 function createOAuth2Client() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -61,7 +69,7 @@ function createOAuth2Client() {
       "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET env vars are required"
     );
   }
-  return new OAuth2Client(clientId, clientSecret, REDIRECT_URI());
+  return new OAuth2Client(clientId, clientSecret, auth.getPickerRedirectUri());
 }
 
 // --- Token Storage ---
@@ -228,14 +236,86 @@ function isCacheStale() {
   return Date.now() - photoCache.fetchedAt > CACHE_TTL_MS;
 }
 
-// --- Static Files ---
-app.use(express.static(path.join(__dirname, "public")));
-app.use("/uploads", express.static(UPLOADS_DIR));
+// --- Static Files (CSS/JS always public, pages gated below) ---
+app.use("/css", express.static(path.join(__dirname, "public/css")));
+app.use("/js", express.static(path.join(__dirname, "public/js")));
 
-// --- Auth Routes ---
+// Login page (always public)
+app.get("/login", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public/login.html"));
+});
+app.get("/login.html", (_req, res) => res.redirect("/login"));
+
+// --- Login Routes ---
+app.get("/login/google", (_req, res) => {
+  try {
+    const url = auth.getLoginUrl();
+    res.redirect(url);
+  } catch (err) {
+    res.redirect("/login?error=failed");
+  }
+});
+
+app.get("/login/callback", async (req, res) => {
+  const { code } = req.query;
+  if (!code) {
+    return res.redirect("/login?error=failed");
+  }
+
+  try {
+    const userInfo = await auth.verifyLoginCode(code);
+    const role = auth.getRole(userInfo.email);
+
+    if (!role) {
+      return res.redirect("/login?error=denied");
+    }
+
+    req.session.email = userInfo.email;
+    req.session.name = userInfo.name;
+    req.session.picture = userInfo.picture;
+    res.redirect(role === "admin" ? "/admin.html" : "/");
+  } catch (err) {
+    console.error("Login callback error:", err.message);
+    res.redirect("/login?error=failed");
+  }
+});
+
+app.post("/login/logout", (req, res) => {
+  req.session = null;
+  res.json({ ok: true });
+});
+
+app.get("/api/me", (req, res) => {
+  if (!req.session || !req.session.email) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+  const role = auth.getRole(req.session.email);
+  res.json({
+    email: req.session.email,
+    name: req.session.name,
+    picture: req.session.picture,
+    role,
+  });
+});
+
+// --- Page Routes (auth gated) ---
+app.get("/", auth.requireAuthPage("viewer"), (_req, res) => {
+  res.sendFile(path.join(__dirname, "public/index.html"));
+});
+
+app.get("/index.html", (_req, res) => res.redirect("/"));
+
+app.get("/admin.html", auth.requireAuthPage("admin"), (_req, res) => {
+  res.sendFile(path.join(__dirname, "public/admin.html"));
+});
+
+// Uploads directory (viewer+)
+app.use("/uploads", auth.requireAuth("viewer"), express.static(UPLOADS_DIR));
+
+// --- Google Photos Auth Routes (admin only) ---
 
 // GET /auth/url — Generate OAuth consent URL
-app.get("/auth/url", (_req, res) => {
+app.get("/auth/url", auth.requireAuth("admin"), (_req, res) => {
   try {
     const client = createOAuth2Client();
     const url = client.generateAuthUrl({
@@ -271,7 +351,7 @@ app.get("/auth/callback", async (req, res) => {
 });
 
 // GET /auth/status — Check connection status + photo count
-app.get("/auth/status", async (_req, res) => {
+app.get("/auth/status", auth.requireAuth("admin"), async (_req, res) => {
   const tokens = loadTokens();
   if (!tokens) {
     return res.json({ connected: false });
@@ -288,7 +368,7 @@ app.get("/auth/status", async (_req, res) => {
 });
 
 // POST /auth/disconnect — Remove stored tokens and config
-app.post("/auth/disconnect", (_req, res) => {
+app.post("/auth/disconnect", auth.requireAuth("admin"), (_req, res) => {
   deleteTokens();
   deleteConfig();
   photoCache = { items: [], fetchedAt: 0 };
@@ -298,7 +378,7 @@ app.post("/auth/disconnect", (_req, res) => {
 // --- Picker Routes ---
 
 // POST /api/picker/session — Create a new Picker session
-app.post("/api/picker/session", async (_req, res) => {
+app.post("/api/picker/session", auth.requireAuth("admin"), async (_req, res) => {
   try {
     const accessToken = await getAccessToken();
     if (!accessToken) {
@@ -318,7 +398,7 @@ app.post("/api/picker/session", async (_req, res) => {
 });
 
 // GET /api/picker/session/:id — Poll session status
-app.get("/api/picker/session/:id", async (req, res) => {
+app.get("/api/picker/session/:id", auth.requireAuth("admin"), async (req, res) => {
   try {
     const accessToken = await getAccessToken();
     if (!accessToken) {
@@ -339,7 +419,7 @@ app.get("/api/picker/session/:id", async (req, res) => {
 });
 
 // POST /api/picker/confirm — Save session and populate cache
-app.post("/api/picker/confirm", async (req, res) => {
+app.post("/api/picker/confirm", auth.requireAuth("admin"), async (req, res) => {
   const { sessionId } = req.body;
   if (!sessionId) {
     return res.status(400).json({ error: "sessionId required" });
@@ -384,7 +464,7 @@ app.post("/api/picker/confirm", async (req, res) => {
 // --- Local Upload Routes ---
 
 // POST /api/upload — Upload local photos
-app.post("/api/upload", upload.array("photos", 50), (req, res) => {
+app.post("/api/upload", auth.requireAuth("admin"), upload.array("photos", 50), (req, res) => {
   const uploaded = req.files.map((f) => ({
     filename: f.filename,
     url: `/uploads/${encodeURIComponent(f.filename)}`,
@@ -393,7 +473,7 @@ app.post("/api/upload", upload.array("photos", 50), (req, res) => {
 });
 
 // DELETE /api/photos/:id — Remove a photo (Google Photos or local)
-app.delete("/api/photos/:id", (_req, res) => {
+app.delete("/api/photos/:id", auth.requireAuth("admin"), (_req, res) => {
   const photoId = _req.params.id;
 
   // Check if it's a local file
@@ -442,7 +522,7 @@ function getLocalPhotos() {
 }
 
 // GET /api/photos — Returns merged list (Google Photos + local uploads)
-app.get("/api/photos", async (_req, res) => {
+app.get("/api/photos", auth.requireAuth("viewer"), async (_req, res) => {
   // Refresh Google Photos cache if stale
   if (isCacheStale() && loadConfig()) {
     await refreshCache();
@@ -461,7 +541,7 @@ app.get("/api/photos", async (_req, res) => {
 });
 
 // GET /api/photo/:id — Image proxy: fetches bytes from Google with auth header
-app.get("/api/photo/:id", async (req, res) => {
+app.get("/api/photo/:id", auth.requireAuth("viewer"), async (req, res) => {
   const photoId = req.params.id;
   const item = photoCache.items.find((p) => p.id === photoId);
 

@@ -17,10 +17,44 @@
 
   let pollTimer = null;
 
+  // --- Handle 401 globally ---
+  function handleAuthError(res) {
+    if (res.status === 401 || res.status === 403) {
+      window.location.href = "/login";
+      return true;
+    }
+    return false;
+  }
+
+  // --- Load current user ---
+  async function loadUser() {
+    try {
+      const res = await fetch("/api/me");
+      if (handleAuthError(res)) return;
+      const user = await res.json();
+      const userInfo = document.getElementById("user-info");
+      const userName = document.getElementById("user-name");
+      const logoutBtn = document.getElementById("logout-btn");
+      if (userInfo && userName) {
+        userName.textContent = user.name || user.email;
+        userInfo.style.display = "flex";
+      }
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", async () => {
+          await fetch("/login/logout", { method: "POST" });
+          window.location.href = "/login";
+        });
+      }
+    } catch (_) {
+      // ignore
+    }
+  }
+
   // --- Check auth status on load ---
   async function checkStatus() {
     try {
       const res = await fetch("/auth/status");
+      if (handleAuthError(res)) return;
       const data = await res.json();
 
       if (data.connected) {
@@ -158,6 +192,7 @@
   async function loadPhotos() {
     try {
       const res = await fetch("/api/photos");
+      if (handleAuthError(res)) return;
       const photos = await res.json();
 
       photoGrid.innerHTML = "";
@@ -286,5 +321,6 @@
   }
 
   // --- Init ---
+  loadUser();
   checkStatus();
 })();
