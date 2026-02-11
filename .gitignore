@@ -10,3 +10,7 @@
 !.github/**
 !.markdownlint.jsonc
 !.lycheeignore
+!Project/
+!Project/pClaude/
+!Project/pClaude/playground/
+!Project/pClaude/playground/CLAUDE.md
