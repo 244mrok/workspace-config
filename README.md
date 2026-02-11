@@ -1,5 +1,7 @@
 # workspace-config
 
+[![CI](https://github.com/244mrok/workspace-config/actions/workflows/ci.yml/badge.svg)](https://github.com/244mrok/workspace-config/actions/workflows/ci.yml)
+
 開発環境のワークスペース設定とClaude Codeガイド。
 
 ## 概要
