@@ -1,0 +1,12 @@
+# Ignore everything by default
+*
+
+# Track only workspace config
+!.gitignore
+!CLAUDE.md
+!README.md
+!LICENSE
+!.github/
+!.github/**
+!.markdownlint.jsonc
+!.lycheeignore
