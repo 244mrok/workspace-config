@@ -14,3 +14,9 @@
 !Project/pClaude/
 !Project/pClaude/playground/
 !Project/pClaude/playground/CLAUDE.md
+!Project/pClaude/playground/.gitignore
+!Project/pClaude/playground/package.json
+!Project/pClaude/playground/package-lock.json
+!Project/pClaude/playground/server.js
+!Project/pClaude/playground/public/
+!Project/pClaude/playground/public/**

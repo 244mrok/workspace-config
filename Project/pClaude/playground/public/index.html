@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <title>Photo Slideshow</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #000;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    #slideshow {
+      position: fixed;
+      inset: 0;
+      background: #000;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 1.5s ease-in-out;
+      will-change: opacity, transform;
+    }
+
+    .slide.active {
+      opacity: 1;
+    }
+
+    .slide img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Ken Burns — each slide gets a random variation */
+    @keyframes kb1 {
+      from { transform: scale(1.0) translate(0, 0); }
+      to   { transform: scale(1.15) translate(-2%, -1%); }
+    }
+    @keyframes kb2 {
+      from { transform: scale(1.15) translate(-2%, -2%); }
+      to   { transform: scale(1.0) translate(0, 0); }
+    }
+    @keyframes kb3 {
+      from { transform: scale(1.0) translate(0, 0); }
+      to   { transform: scale(1.12) translate(2%, -1.5%); }
+    }
+    @keyframes kb4 {
+      from { transform: scale(1.12) translate(1%, 1%); }
+      to   { transform: scale(1.0) translate(0, 0); }
+    }
+
+    .slide.kb-1 img { animation: kb1 8s ease-in-out forwards; }
+    .slide.kb-2 img { animation: kb2 8s ease-in-out forwards; }
+    .slide.kb-3 img { animation: kb3 8s ease-in-out forwards; }
+    .slide.kb-4 img { animation: kb4 8s ease-in-out forwards; }
+
+    #pause-indicator {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 64px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 10;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    }
+
+    #pause-indicator.visible {
+      opacity: 1;
+    }
+
+    #empty-message {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 1.2rem;
+      text-align: center;
+      padding: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="slideshow"></div>
+  <div id="pause-indicator">&#10074;&#10074;</div>
+  <div id="empty-message" style="display:none;">
+    No photos yet.<br>Upload photos at <strong>/admin.html</strong>
+  </div>
+  <script src="/js/slideshow.js"></script>
+</body>
+</html>

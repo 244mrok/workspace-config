@@ -1,0 +1,4 @@
+/* Shared base reset — minimal, both pages have their own specifics */
+html {
+  -webkit-text-size-adjust: 100%;
+}
