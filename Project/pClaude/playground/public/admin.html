@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Photo Viewer — Admin</title>
-  <link rel="stylesheet" href="/css/style.css">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -41,54 +40,95 @@
       padding: 0 1.5rem;
     }
 
-    /* Drop zone */
-    #drop-zone {
-      border: 2px dashed #ccc;
-      border-radius: 12px;
-      padding: 3rem 2rem;
-      text-align: center;
+    /* Connection section */
+    .section {
       background: #fff;
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-      margin-bottom: 2rem;
+      border-radius: 12px;
+      padding: 1.5rem 2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
 
-    #drop-zone.dragover {
-      border-color: #0066cc;
-      background: #f0f7ff;
-    }
-
-    #drop-zone p {
-      color: #888;
+    .section h2 {
       font-size: 1rem;
-      margin-bottom: 0.5rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 0.75rem;
     }
 
-    #drop-zone .browse {
-      color: #0066cc;
-      text-decoration: underline;
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.connected { background: #34c759; }
+    .status-dot.disconnected { background: #ccc; }
+
+    .status-text {
+      flex: 1;
+      font-size: 0.95rem;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 500;
       cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s;
     }
 
-    #file-input {
-      display: none;
-    }
-
-    /* Progress */
-    #progress-bar {
-      display: none;
-      background: #e0e0e0;
-      border-radius: 4px;
-      height: 6px;
-      margin-bottom: 2rem;
-      overflow: hidden;
-    }
-
-    #progress-bar .fill {
-      height: 100%;
+    .btn-primary {
       background: #0066cc;
-      width: 0%;
-      transition: width 0.2s;
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: #0055aa; }
+
+    .btn-secondary {
+      background: #e8e8e8;
+      color: #333;
+    }
+
+    .btn-secondary:hover { background: #ddd; }
+
+    .btn-danger {
+      background: #ff3b30;
+      color: #fff;
+    }
+
+    .btn-danger:hover { background: #dd2a20; }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    /* Picker status */
+    #picker-status {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #666;
     }
 
     /* Photo grid */
@@ -114,34 +154,16 @@
       display: block;
     }
 
-    .photo-card .delete-btn {
-      position: absolute;
-      top: 6px;
-      right: 6px;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      border: none;
-      background: rgba(0,0,0,0.6);
-      color: #fff;
-      font-size: 16px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      transition: opacity 0.2s;
-      line-height: 1;
-    }
-
-    .photo-card:hover .delete-btn {
-      opacity: 1;
-    }
-
     #empty-state {
       text-align: center;
       color: #999;
       padding: 3rem;
+    }
+
+    .info-text {
+      font-size: 0.85rem;
+      color: #888;
+      margin-top: 0.5rem;
     }
   </style>
 </head>
@@ -151,14 +173,41 @@
     <a href="/" target="_blank">Open Slideshow</a>
   </header>
   <div class="container">
-    <div id="drop-zone">
-      <p>Drag & drop photos here</p>
-      <p>or <span class="browse">browse files</span></p>
-      <input type="file" id="file-input" multiple accept="image/jpeg,image/png,image/webp,image/heic">
+    <!-- Connection Section -->
+    <div class="section" id="connection-section">
+      <h2>Google Photos Connection</h2>
+      <div id="status-disconnected" style="display:none;">
+        <div class="status-row">
+          <div class="status-dot disconnected"></div>
+          <span class="status-text">Not connected to Google Photos</span>
+          <button class="btn btn-primary" id="connect-btn">Connect Google Photos</button>
+        </div>
+      </div>
+      <div id="status-connected" style="display:none;">
+        <div class="status-row">
+          <div class="status-dot connected"></div>
+          <span class="status-text" id="connected-text">Connected to Google Photos</span>
+          <button class="btn btn-danger" id="disconnect-btn">Disconnect</button>
+        </div>
+      </div>
     </div>
-    <div id="progress-bar"><div class="fill"></div></div>
-    <div id="photo-grid"></div>
-    <div id="empty-state" style="display:none;">No photos uploaded yet.</div>
+
+    <!-- Picker Section (only shown when connected) -->
+    <div class="section" id="picker-section" style="display:none;">
+      <h2>Photo Selection</h2>
+      <div class="btn-group">
+        <button class="btn btn-primary" id="pick-btn">Select Photos</button>
+      </div>
+      <p class="info-text">Opens Google Photos in a new window. Select the photos you want in the slideshow.</p>
+      <div id="picker-status"></div>
+    </div>
+
+    <!-- Photo Grid -->
+    <div class="section" id="photos-section" style="display:none;">
+      <h2>Current Photos</h2>
+      <div id="photo-grid"></div>
+      <div id="empty-state" style="display:none;">No photos selected yet.</div>
+    </div>
   </div>
   <script src="/js/admin.js"></script>
 </body>
