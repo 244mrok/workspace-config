@@ -129,7 +129,7 @@ async function getPickerSession(sessionId, accessToken) {
 }
 
 async function getPickerMediaItems(sessionId, accessToken, pageToken) {
-  let url = `${PICKER_API}/sessions/${sessionId}/mediaItems?pageSize=100`;
+  let url = `${PICKER_API}/mediaItems?sessionId=${encodeURIComponent(sessionId)}&pageSize=100`;
   if (pageToken) {
     url += `&pageToken=${encodeURIComponent(pageToken)}`;
   }

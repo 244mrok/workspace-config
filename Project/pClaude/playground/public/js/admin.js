@@ -72,17 +72,28 @@
     pickBtn.disabled = true;
     pickerStatus.textContent = "Creating picker session...";
 
+    // Open window immediately (before await) to avoid popup blocker
+    const pickerWindow = window.open("about:blank", "google-photos-picker",
+      "width=1024,height=700,menubar=no,toolbar=no");
+
     try {
       const res = await fetch("/api/picker/session", { method: "POST" });
       if (!res.ok) {
         const err = await res.json();
+        if (pickerWindow) pickerWindow.close();
         throw new Error(err.error || "Failed to create session");
       }
       const session = await res.json();
 
-      // Open picker in new window
-      const pickerWindow = window.open(session.pickerUri, "google-photos-picker",
-        "width=1024,height=700,menubar=no,toolbar=no");
+      // Navigate the already-opened window to the picker URI
+      if (pickerWindow) {
+        pickerWindow.location.href = session.pickerUri;
+      } else {
+        // Fallback: redirect current page if popup was still blocked
+        pickerStatus.innerHTML = 'Popup blocked. <a href="' + session.pickerUri + '" target="_blank">Click here to open the picker</a>';
+        pickBtn.disabled = false;
+        return;
+      }
 
       pickerStatus.textContent = "Waiting for photo selection... (pick photos in the Google Photos window)";
 
