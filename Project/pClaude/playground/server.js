@@ -26,6 +26,7 @@ const TOKENS_PATH = path.join(DATA_DIR, "tokens.json");
 const CONFIG_PATH = path.join(DATA_DIR, "config.json");
 
 const PICKER_API = "https://photospicker.googleapis.com/v1";
+const LIBRARY_API = "https://photoslibrary.googleapis.com/v1";
 const CACHE_TTL_MS = 50 * 60 * 1000; // 50 minutes
 
 // Ensure directories exist
@@ -195,10 +196,10 @@ async function fetchAllMediaItems(sessionId, accessToken) {
   return allItems;
 }
 
-// Refresh the photo cache from the stored picker session
+// Refresh the photo cache from the stored picker session or library
 async function refreshCache() {
   const config = loadConfig();
-  if (!config || !config.sessionId) {
+  if (!config) {
     photoCache = { items: [], fetchedAt: 0 };
     return;
   }
@@ -210,22 +211,48 @@ async function refreshCache() {
   }
 
   try {
-    const mediaItems = await fetchAllMediaItems(config.sessionId, accessToken);
-    const allowedIds = config.mediaItemIds
-      ? new Set(config.mediaItemIds)
-      : null;
-    photoCache = {
-      items: mediaItems
-        .filter((item) => item.mediaFile && item.mediaFile.baseUrl)
-        .filter((item) => !allowedIds || allowedIds.has(item.id))
-        .map((item) => ({
-          id: item.id,
-          baseUrl: item.mediaFile.baseUrl,
-          mimeType: item.mediaFile.mimeType || "image/jpeg",
-          filename: item.mediaFile.filename || item.id,
-        })),
-      fetchedAt: Date.now(),
-    };
+    if (config.mode === "library") {
+      // Library mode: fetch each media item individually to get fresh baseUrls
+      const ids = config.mediaItemIds || [];
+      const results = await Promise.allSettled(
+        ids.map((id) => getLibraryMediaItem(accessToken, id))
+      );
+      photoCache = {
+        items: results
+          .filter((r) => r.status === "fulfilled")
+          .map((r) => r.value)
+          .filter((item) => item.baseUrl)
+          .map((item) => ({
+            id: item.id,
+            baseUrl: item.baseUrl,
+            mimeType: item.mimeType || "image/jpeg",
+            filename: item.filename || item.id,
+          })),
+        fetchedAt: Date.now(),
+      };
+    } else {
+      // Picker mode: fetch from picker session
+      if (!config.sessionId) {
+        photoCache = { items: [], fetchedAt: 0 };
+        return;
+      }
+      const mediaItems = await fetchAllMediaItems(config.sessionId, accessToken);
+      const allowedIds = config.mediaItemIds
+        ? new Set(config.mediaItemIds)
+        : null;
+      photoCache = {
+        items: mediaItems
+          .filter((item) => item.mediaFile && item.mediaFile.baseUrl)
+          .filter((item) => !allowedIds || allowedIds.has(item.id))
+          .map((item) => ({
+            id: item.id,
+            baseUrl: item.mediaFile.baseUrl,
+            mimeType: item.mediaFile.mimeType || "image/jpeg",
+            filename: item.mediaFile.filename || item.id,
+          })),
+        fetchedAt: Date.now(),
+      };
+    }
   } catch (err) {
     console.error("Failed to refresh photo cache:", err.message);
     // Keep stale cache rather than clearing
@@ -323,6 +350,7 @@ app.get("/auth/url", auth.requireAuth("admin"), (_req, res) => {
       prompt: "consent",
       scope: [
         "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
+        "https://www.googleapis.com/auth/photoslibrary.readonly",
       ],
     });
     res.json({ url });
@@ -362,7 +390,8 @@ app.get("/auth/status", auth.requireAuth("admin"), async (_req, res) => {
 
   res.json({
     connected: true,
-    hasSession: !!(config && config.sessionId),
+    hasSession: !!(config && (config.sessionId || config.mode === "library")),
+    mode: config ? config.mode || "picker" : null,
     photoCount,
   });
 });
@@ -457,6 +486,98 @@ app.post("/api/picker/confirm", auth.requireAuth("admin"), async (req, res) => {
     res.json({ ok: true, photoCount: photoCache.items.length });
   } catch (err) {
     console.error("Confirm picker error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- Library API Helpers ---
+async function listLibraryMediaItems(accessToken, pageToken) {
+  let url = `${LIBRARY_API}/mediaItems?pageSize=100`;
+  if (pageToken) {
+    url += `&pageToken=${encodeURIComponent(pageToken)}`;
+  }
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to list library media items: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+async function getLibraryMediaItem(accessToken, mediaItemId) {
+  const res = await fetch(`${LIBRARY_API}/mediaItems/${mediaItemId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to get media item ${mediaItemId}: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
+// Fisher-Yates shuffle
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// --- Library Random Route ---
+
+// POST /api/library/random — Fetch random photos from Google Photos Library
+app.post("/api/library/random", auth.requireAuth("admin"), async (_req, res) => {
+  try {
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      return res.status(401).json({ error: "Not authenticated with Google Photos" });
+    }
+
+    // Fetch up to 500 items (5 pages of 100)
+    const allItems = [];
+    let pageToken = undefined;
+    const maxPages = 5;
+    for (let page = 0; page < maxPages; page++) {
+      const result = await listLibraryMediaItems(accessToken, pageToken);
+      if (result.mediaItems) {
+        allItems.push(...result.mediaItems);
+      }
+      pageToken = result.nextPageToken;
+      if (!pageToken) break;
+    }
+
+    // Filter to images only (skip videos)
+    const images = allItems.filter(
+      (item) => item.mimeType && item.mimeType.startsWith("image/")
+    );
+
+    // Randomly select up to 50
+    const selected = shuffleArray(images).slice(0, 50);
+
+    // Save config with library mode
+    saveConfig({
+      mode: "library",
+      mediaItemIds: selected.map((item) => item.id),
+      confirmedAt: new Date().toISOString(),
+    });
+
+    // Populate cache
+    photoCache = {
+      items: selected.map((item) => ({
+        id: item.id,
+        baseUrl: item.baseUrl,
+        mimeType: item.mimeType || "image/jpeg",
+        filename: item.filename || item.id,
+      })),
+      fetchedAt: Date.now(),
+    };
+
+    res.json({ ok: true, photoCount: photoCache.items.length });
+  } catch (err) {
+    console.error("Library random error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });

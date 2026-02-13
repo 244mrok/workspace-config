@@ -2,6 +2,7 @@
   const connectBtn = document.getElementById("connect-btn");
   const disconnectBtn = document.getElementById("disconnect-btn");
   const pickBtn = document.getElementById("pick-btn");
+  const randomBtn = document.getElementById("random-btn");
   const statusDisconnected = document.getElementById("status-disconnected");
   const statusConnected = document.getElementById("status-connected");
   const connectedText = document.getElementById("connected-text");
@@ -184,6 +185,31 @@
       }, 10 * 60 * 1000);
     } catch (err) {
       pickerStatus.textContent = "Error: " + err.message;
+      pickBtn.disabled = false;
+    }
+  });
+
+  // --- Random photos from library ---
+  randomBtn.addEventListener("click", async () => {
+    randomBtn.disabled = true;
+    pickBtn.disabled = true;
+    pickerStatus.textContent = "Fetching random photos from your library...";
+
+    try {
+      const res = await fetch("/api/library/random", { method: "POST" });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch random photos");
+      }
+
+      pickerStatus.textContent = `Done! ${data.photoCount} random photo${data.photoCount !== 1 ? "s" : ""} loaded.`;
+      setTimeout(() => { pickerStatus.textContent = ""; }, 3000);
+      checkStatus();
+    } catch (err) {
+      pickerStatus.textContent = "Error: " + err.message;
+    } finally {
+      randomBtn.disabled = false;
       pickBtn.disabled = false;
     }
   });
