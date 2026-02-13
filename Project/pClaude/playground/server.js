@@ -339,6 +339,11 @@ app.get("/admin.html", auth.requireAuthPage("admin"), (_req, res) => {
 // Uploads directory (viewer+)
 app.use("/uploads", auth.requireAuth("viewer"), express.static(UPLOADS_DIR));
 
+// --- Version check (public, for deploy verification) ---
+app.get("/api/version", (_req, res) => {
+  res.json({ version: "2.1.0", features: ["picker", "library-random"] });
+});
+
 // --- Google Photos Auth Routes (admin only) ---
 
 // GET /auth/url — Generate OAuth consent URL
