@@ -334,7 +334,7 @@ app.use("/uploads", auth.requireAuth("viewer"), express.static(UPLOADS_DIR));
 
 // --- Version check (public, for deploy verification) ---
 app.get("/api/version", (_req, res) => {
-  res.json({ version: "3.0.0", features: ["picker", "drive-random"] });
+  res.json({ version: "3.1.0", features: ["picker", "drive-random"] });
 });
 
 // Debug: check granted scopes (admin only)
@@ -501,7 +501,7 @@ const DRIVE_API = "https://www.googleapis.com/drive/v3";
 
 async function listDrivePhotos(accessToken, pageToken) {
   const q = "mimeType contains 'image/' and trashed = false";
-  let url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&pageSize=100&fields=nextPageToken,files(id,name,mimeType,thumbnailLink,webContentLink)&orderBy=createdTime desc`;
+  let url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&pageSize=100&spaces=drive,photos&fields=nextPageToken,files(id,name,mimeType,thumbnailLink,webContentLink)`;
   if (pageToken) {
     url += `&pageToken=${encodeURIComponent(pageToken)}`;
   }
@@ -512,7 +512,9 @@ async function listDrivePhotos(accessToken, pageToken) {
     const text = await res.text();
     throw new Error(`Failed to list Drive photos: ${res.status} ${text}`);
   }
-  return res.json();
+  const data = await res.json();
+  console.log(`Drive API returned ${(data.files || []).length} files (page token: ${!!data.nextPageToken})`);
+  return data;
 }
 
 // Fisher-Yates shuffle
@@ -548,7 +550,18 @@ app.post("/api/library/random", auth.requireAuth("admin"), async (_req, res) => 
     }
 
     if (allFiles.length === 0) {
-      return res.status(404).json({ error: "No photos found in Google Drive" });
+      // Try a broader query to diagnose
+      const debugRes = await fetch(`${DRIVE_API}/files?pageSize=5&fields=files(id,name,mimeType)`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const debugData = await debugRes.json();
+      console.log("Debug - any files at all:", JSON.stringify(debugData));
+      return res.status(404).json({
+        error: "No image files found in Google Drive",
+        hint: "Google Photos and Google Drive are separate. Photos must be in Drive.",
+        debugFileCount: (debugData.files || []).length,
+        debugSampleFiles: (debugData.files || []).slice(0, 3).map(f => ({ name: f.name, mimeType: f.mimeType })),
+      });
     }
 
     // Randomly select up to 50
