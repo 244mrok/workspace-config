@@ -341,7 +341,7 @@ app.use("/uploads", auth.requireAuth("viewer"), express.static(UPLOADS_DIR));
 
 // --- Version check (public, for deploy verification) ---
 app.get("/api/version", (_req, res) => {
-  res.json({ version: "2.3.0", features: ["picker", "library-random"] });
+  res.json({ version: "2.4.0", features: ["picker", "library-random"] });
 });
 
 // Debug: check granted scopes (admin only)
@@ -505,16 +505,23 @@ app.post("/api/picker/confirm", auth.requireAuth("admin"), async (req, res) => {
 
 // --- Library API Helpers ---
 async function listLibraryMediaItems(accessToken, pageToken) {
-  let url = `${LIBRARY_API}/mediaItems?pageSize=100`;
+  // Use mediaItems:search (POST) instead of mediaItems (GET)
+  // as Google has restricted the list endpoint for newer projects
+  const body = { pageSize: 100 };
   if (pageToken) {
-    url += `&pageToken=${encodeURIComponent(pageToken)}`;
+    body.pageToken = pageToken;
   }
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+  const res = await fetch(`${LIBRARY_API}/mediaItems:search`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Failed to list library media items: ${res.status} ${text}`);
+    throw new Error(`Failed to search library media items: ${res.status} ${text}`);
   }
   return res.json();
 }
