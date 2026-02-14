@@ -26,7 +26,7 @@ const TOKENS_PATH = path.join(DATA_DIR, "tokens.json");
 const CONFIG_PATH = path.join(DATA_DIR, "config.json");
 
 const PICKER_API = "https://photospicker.googleapis.com/v1";
-const LIBRARY_API = "https://photoslibrary.googleapis.com/v1";
+// Drive API is used for random photos (Photos Library API is restricted for new projects)
 const CACHE_TTL_MS = 50 * 60 * 1000; // 50 minutes
 
 // Ensure directories exist
@@ -211,23 +211,16 @@ async function refreshCache() {
   }
 
   try {
-    if (config.mode === "library") {
-      // Library mode: fetch each media item individually to get fresh baseUrls
+    if (config.mode === "drive") {
+      // Drive mode: baseUrls don't expire, just rebuild cache from stored IDs
       const ids = config.mediaItemIds || [];
-      const results = await Promise.allSettled(
-        ids.map((id) => getLibraryMediaItem(accessToken, id))
-      );
       photoCache = {
-        items: results
-          .filter((r) => r.status === "fulfilled")
-          .map((r) => r.value)
-          .filter((item) => item.baseUrl)
-          .map((item) => ({
-            id: item.id,
-            baseUrl: item.baseUrl,
-            mimeType: item.mimeType || "image/jpeg",
-            filename: item.filename || item.id,
-          })),
+        items: ids.map((id) => ({
+          id,
+          baseUrl: `https://www.googleapis.com/drive/v3/files/${id}?alt=media`,
+          mimeType: "image/jpeg",
+          filename: id,
+        })),
         fetchedAt: Date.now(),
       };
     } else {
@@ -341,7 +334,7 @@ app.use("/uploads", auth.requireAuth("viewer"), express.static(UPLOADS_DIR));
 
 // --- Version check (public, for deploy verification) ---
 app.get("/api/version", (_req, res) => {
-  res.json({ version: "2.5.1", features: ["picker", "library-random"] });
+  res.json({ version: "3.0.0", features: ["picker", "drive-random"] });
 });
 
 // Debug: check granted scopes (admin only)
@@ -362,7 +355,7 @@ app.get("/auth/url", auth.requireAuth("admin"), (_req, res) => {
       prompt: "consent",
       scope: [
         "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
-        "https://www.googleapis.com/auth/photoslibrary",
+        "https://www.googleapis.com/auth/drive.readonly",
       ],
     });
     res.json({ url });
@@ -403,7 +396,7 @@ app.get("/auth/status", auth.requireAuth("admin"), async (_req, res) => {
 
   res.json({
     connected: true,
-    hasSession: !!(config && (config.sessionId || config.mode === "library")),
+    hasSession: !!(config && (config.sessionId || config.mode === "drive")),
     mode: config ? config.mode || "picker" : null,
     photoCount,
   });
@@ -503,36 +496,21 @@ app.post("/api/picker/confirm", auth.requireAuth("admin"), async (req, res) => {
   }
 });
 
-// --- Library API Helpers ---
-async function listLibraryMediaItems(accessToken, pageToken) {
-  // Use mediaItems:search (POST) instead of mediaItems (GET)
-  // as Google has restricted the list endpoint for newer projects
-  const body = { pageSize: 100 };
-  if (pageToken) {
-    body.pageToken = pageToken;
-  }
-  const res = await fetch(`${LIBRARY_API}/mediaItems:search`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Failed to search library media items: ${res.status} ${text}`);
-  }
-  return res.json();
-}
+// --- Drive API Helpers ---
+const DRIVE_API = "https://www.googleapis.com/drive/v3";
 
-async function getLibraryMediaItem(accessToken, mediaItemId) {
-  const res = await fetch(`${LIBRARY_API}/mediaItems/${mediaItemId}`, {
+async function listDrivePhotos(accessToken, pageToken) {
+  const q = "mimeType contains 'image/' and trashed = false";
+  let url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&pageSize=100&fields=nextPageToken,files(id,name,mimeType,thumbnailLink,webContentLink)&orderBy=createdTime desc`;
+  if (pageToken) {
+    url += `&pageToken=${encodeURIComponent(pageToken)}`;
+  }
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Failed to get media item ${mediaItemId}: ${res.status} ${text}`);
+    throw new Error(`Failed to list Drive photos: ${res.status} ${text}`);
   }
   return res.json();
 }
@@ -546,73 +524,57 @@ function shuffleArray(arr) {
   return arr;
 }
 
-// --- Library Random Route ---
+// --- Random Photos Route (via Google Drive API) ---
 
-// POST /api/library/random — Fetch random photos from Google Photos Library
+// POST /api/library/random — Fetch random photos from Google Drive
 app.post("/api/library/random", auth.requireAuth("admin"), async (_req, res) => {
   try {
-    // Force fresh token by refreshing credentials
-    const client = await getAuthedClient();
-    if (!client) {
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
       return res.status(401).json({ error: "Not authenticated with Google Photos" });
     }
-    const { token: accessToken } = await client.getAccessToken();
 
-    // Debug: check what scopes the actual access token has
-    const tokenInfoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${accessToken}`);
-    const tokenInfo = await tokenInfoRes.json();
-    console.log("Library random - token scopes:", tokenInfo.scope);
-
-    if (!tokenInfo.scope || !tokenInfo.scope.includes("photoslibrary")) {
-      return res.status(403).json({
-        error: "Access token missing photoslibrary scope",
-        grantedScopes: tokenInfo.scope,
-        hint: "Try disconnecting and reconnecting Google Photos"
-      });
-    }
-
-    // Fetch up to 500 items (5 pages of 100)
-    const allItems = [];
+    // Fetch up to 500 image files from Drive (5 pages of 100)
+    const allFiles = [];
     let pageToken = undefined;
     const maxPages = 5;
     for (let page = 0; page < maxPages; page++) {
-      const result = await listLibraryMediaItems(accessToken, pageToken);
-      if (result.mediaItems) {
-        allItems.push(...result.mediaItems);
+      const result = await listDrivePhotos(accessToken, pageToken);
+      if (result.files) {
+        allFiles.push(...result.files);
       }
       pageToken = result.nextPageToken;
       if (!pageToken) break;
     }
 
-    // Filter to images only (skip videos)
-    const images = allItems.filter(
-      (item) => item.mimeType && item.mimeType.startsWith("image/")
-    );
+    if (allFiles.length === 0) {
+      return res.status(404).json({ error: "No photos found in Google Drive" });
+    }
 
     // Randomly select up to 50
-    const selected = shuffleArray(images).slice(0, 50);
+    const selected = shuffleArray(allFiles).slice(0, 50);
 
-    // Save config with library mode
+    // Save config with drive mode
     saveConfig({
-      mode: "library",
-      mediaItemIds: selected.map((item) => item.id),
+      mode: "drive",
+      mediaItemIds: selected.map((f) => f.id),
       confirmedAt: new Date().toISOString(),
     });
 
-    // Populate cache
+    // Populate cache — use Drive file ID as the photo ID
     photoCache = {
-      items: selected.map((item) => ({
-        id: item.id,
-        baseUrl: item.baseUrl,
-        mimeType: item.mimeType || "image/jpeg",
-        filename: item.filename || item.id,
+      items: selected.map((f) => ({
+        id: f.id,
+        baseUrl: `https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`,
+        mimeType: f.mimeType || "image/jpeg",
+        filename: f.name || f.id,
       })),
       fetchedAt: Date.now(),
     };
 
     res.json({ ok: true, photoCount: photoCache.items.length });
   } catch (err) {
-    console.error("Library random error:", err.message);
+    console.error("Drive random error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
