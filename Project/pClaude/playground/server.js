@@ -341,7 +341,7 @@ app.use("/uploads", auth.requireAuth("viewer"), express.static(UPLOADS_DIR));
 
 // --- Version check (public, for deploy verification) ---
 app.get("/api/version", (_req, res) => {
-  res.json({ version: "2.2.0", features: ["picker", "library-random"] });
+  res.json({ version: "2.3.0", features: ["picker", "library-random"] });
 });
 
 // Debug: check granted scopes (admin only)
@@ -544,9 +544,24 @@ function shuffleArray(arr) {
 // POST /api/library/random — Fetch random photos from Google Photos Library
 app.post("/api/library/random", auth.requireAuth("admin"), async (_req, res) => {
   try {
-    const accessToken = await getAccessToken();
-    if (!accessToken) {
+    // Force fresh token by refreshing credentials
+    const client = await getAuthedClient();
+    if (!client) {
       return res.status(401).json({ error: "Not authenticated with Google Photos" });
+    }
+    const { token: accessToken } = await client.getAccessToken();
+
+    // Debug: check what scopes the actual access token has
+    const tokenInfoRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${accessToken}`);
+    const tokenInfo = await tokenInfoRes.json();
+    console.log("Library random - token scopes:", tokenInfo.scope);
+
+    if (!tokenInfo.scope || !tokenInfo.scope.includes("photoslibrary.readonly")) {
+      return res.status(403).json({
+        error: "Access token missing photoslibrary.readonly scope",
+        grantedScopes: tokenInfo.scope,
+        hint: "Try disconnecting and reconnecting Google Photos"
+      });
     }
 
     // Fetch up to 500 items (5 pages of 100)
