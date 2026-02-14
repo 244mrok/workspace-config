@@ -334,7 +334,7 @@ app.use("/uploads", auth.requireAuth("viewer"), express.static(UPLOADS_DIR));
 
 // --- Version check (public, for deploy verification) ---
 app.get("/api/version", (_req, res) => {
-  res.json({ version: "3.1.0", features: ["picker", "drive-random"] });
+  res.json({ version: "3.1.1", features: ["picker", "drive-random"] });
 });
 
 // Debug: check granted scopes (admin only)
@@ -501,7 +501,7 @@ const DRIVE_API = "https://www.googleapis.com/drive/v3";
 
 async function listDrivePhotos(accessToken, pageToken) {
   const q = "mimeType contains 'image/' and trashed = false";
-  let url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&pageSize=100&spaces=drive,photos&fields=nextPageToken,files(id,name,mimeType,thumbnailLink,webContentLink)`;
+  let url = `${DRIVE_API}/files?q=${encodeURIComponent(q)}&pageSize=100&fields=nextPageToken,files(id,name,mimeType,thumbnailLink,webContentLink)`;
   if (pageToken) {
     url += `&pageToken=${encodeURIComponent(pageToken)}`;
   }
