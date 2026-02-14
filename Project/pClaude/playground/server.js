@@ -341,7 +341,7 @@ app.use("/uploads", auth.requireAuth("viewer"), express.static(UPLOADS_DIR));
 
 // --- Version check (public, for deploy verification) ---
 app.get("/api/version", (_req, res) => {
-  res.json({ version: "2.5.0", features: ["picker", "library-random"] });
+  res.json({ version: "2.5.1", features: ["picker", "library-random"] });
 });
 
 // Debug: check granted scopes (admin only)
@@ -563,9 +563,9 @@ app.post("/api/library/random", auth.requireAuth("admin"), async (_req, res) => 
     const tokenInfo = await tokenInfoRes.json();
     console.log("Library random - token scopes:", tokenInfo.scope);
 
-    if (!tokenInfo.scope || !tokenInfo.scope.includes("photoslibrary.readonly")) {
+    if (!tokenInfo.scope || !tokenInfo.scope.includes("photoslibrary")) {
       return res.status(403).json({
-        error: "Access token missing photoslibrary.readonly scope",
+        error: "Access token missing photoslibrary scope",
         grantedScopes: tokenInfo.scope,
         hint: "Try disconnecting and reconnecting Google Photos"
       });
