@@ -341,7 +341,7 @@ app.use("/uploads", auth.requireAuth("viewer"), express.static(UPLOADS_DIR));
 
 // --- Version check (public, for deploy verification) ---
 app.get("/api/version", (_req, res) => {
-  res.json({ version: "2.4.0", features: ["picker", "library-random"] });
+  res.json({ version: "2.5.0", features: ["picker", "library-random"] });
 });
 
 // Debug: check granted scopes (admin only)
@@ -362,7 +362,7 @@ app.get("/auth/url", auth.requireAuth("admin"), (_req, res) => {
       prompt: "consent",
       scope: [
         "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
-        "https://www.googleapis.com/auth/photoslibrary.readonly",
+        "https://www.googleapis.com/auth/photoslibrary",
       ],
     });
     res.json({ url });
