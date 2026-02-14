@@ -341,7 +341,14 @@ app.use("/uploads", auth.requireAuth("viewer"), express.static(UPLOADS_DIR));
 
 // --- Version check (public, for deploy verification) ---
 app.get("/api/version", (_req, res) => {
-  res.json({ version: "2.1.0", features: ["picker", "library-random"] });
+  res.json({ version: "2.2.0", features: ["picker", "library-random"] });
+});
+
+// Debug: check granted scopes (admin only)
+app.get("/api/debug/scopes", auth.requireAuth("admin"), (_req, res) => {
+  const tokens = loadTokens();
+  if (!tokens) return res.json({ error: "No tokens" });
+  res.json({ scope: tokens.scope });
 });
 
 // --- Google Photos Auth Routes (admin only) ---
@@ -374,6 +381,7 @@ app.get("/auth/callback", async (req, res) => {
   try {
     const client = createOAuth2Client();
     const { tokens } = await client.getToken(code);
+    console.log("OAuth tokens granted scope:", tokens.scope);
     saveTokens(tokens);
     // Redirect to admin page with success indicator
     res.redirect("/admin.html?auth=success");
