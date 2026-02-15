@@ -18,6 +18,7 @@
   const progressFill = progressBar.querySelector(".fill");
 
   let pollTimer = null;
+  let isConnected = false;
 
   // --- Service Worker (caches photo bytes in browser) ---
   if ("serviceWorker" in navigator) {
@@ -88,6 +89,7 @@
       if (handleAuthError(res)) return;
       const data = await res.json();
 
+      isConnected = data.connected;
       if (data.connected) {
         statusDisconnected.style.display = "none";
         statusConnected.style.display = "block";
@@ -134,6 +136,7 @@
     try {
       await fetch("/auth/disconnect", { method: "POST" });
       clearSwCache();
+      renderPhotoGrid([]);
       checkStatus();
     } catch (_) {
       alert("Failed to disconnect");
@@ -303,22 +306,24 @@
         return;
       }
 
-      // Server returned empty — use localStorage as source of truth
-      const saved = loadPhotosFromLocal();
-      if (saved && saved.length > 0) {
-        // Render immediately from localStorage (SW cache has the bytes)
-        renderPhotoGrid(saved);
+      // Server returned empty — use localStorage if connected (not after explicit disconnect)
+      if (isConnected) {
+        const saved = loadPhotosFromLocal();
+        if (saved && saved.length > 0) {
+          // Render immediately from localStorage (SW cache has the bytes)
+          renderPhotoGrid(saved);
 
-        // Also restore the server cache in the background
-        const googleItems = saved.filter((p) => p.source === "google");
-        if (googleItems.length > 0) {
-          fetch("/api/photos/restore", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ items: googleItems }),
-          }).catch(() => {});
+          // Also restore the server cache in the background
+          const googleItems = saved.filter((p) => p.source === "google");
+          if (googleItems.length > 0) {
+            fetch("/api/photos/restore", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ items: googleItems }),
+            }).catch(() => {});
+          }
+          return;
         }
-        return;
       }
 
       // Nothing anywhere — show empty state
