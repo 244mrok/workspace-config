@@ -145,7 +145,6 @@
     }
     try {
       await fetch("/auth/disconnect", { method: "POST" });
-      clearPhotosFromLocal();
       clearSwCache();
       checkStatus();
     } catch (_) {
