@@ -10,6 +10,12 @@
   let wakeLock = null;
   let userEmail = null;
 
+  // --- Service Worker (caches photo bytes in browser) ---
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+
+  // --- localStorage helpers ---
   function storageKey() {
     return userEmail ? `photos_${userEmail}` : null;
   }
@@ -54,6 +60,16 @@
     }
   });
 
+  function applyPhotos(data) {
+    photos = data;
+    if (photos.length === 0) {
+      emptyMessage.style.display = "flex";
+      container.innerHTML = "";
+    } else {
+      emptyMessage.style.display = "none";
+    }
+  }
+
   // --- Fetch photos ---
   async function fetchPhotos() {
     try {
@@ -62,37 +78,40 @@
         window.location.href = "/login";
         return;
       }
-      let data = await res.json();
-
-      // If server returned empty, try restoring from localStorage
-      if (data.length === 0) {
-        const saved = loadPhotosFromLocal();
-        if (saved && saved.length > 0) {
-          await fetch("/api/photos/restore", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ items: saved.filter((p) => p.source === "google") }),
-          });
-          const res2 = await fetch("/api/photos");
-          if (res2.ok) {
-            data = await res2.json();
-          }
-        }
-      }
+      const data = await res.json();
 
       if (data.length > 0) {
         savePhotosToLocal(data);
+        applyPhotos(data);
+
+        // Also restore the server cache in the background if needed
+        return;
       }
 
-      photos = data;
-      if (photos.length === 0) {
-        emptyMessage.style.display = "flex";
-        container.innerHTML = "";
-      } else {
-        emptyMessage.style.display = "none";
+      // Server returned empty — use localStorage (SW cache has the bytes)
+      const saved = loadPhotosFromLocal();
+      if (saved && saved.length > 0) {
+        applyPhotos(saved);
+
+        // Restore server cache in background
+        const googleItems = saved.filter((p) => p.source === "google");
+        if (googleItems.length > 0) {
+          fetch("/api/photos/restore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items: googleItems }),
+          }).catch(() => {});
+        }
+        return;
       }
+
+      applyPhotos([]);
     } catch (_) {
-      // Silently retry next poll
+      // Network error — try localStorage
+      const saved = loadPhotosFromLocal();
+      if (saved && saved.length > 0) {
+        applyPhotos(saved);
+      }
     }
   }
 

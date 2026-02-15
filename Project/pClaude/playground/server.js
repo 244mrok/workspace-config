@@ -287,6 +287,11 @@ function isCacheStale() {
 app.use("/css", express.static(path.join(__dirname, "public/css")));
 app.use("/js", express.static(path.join(__dirname, "public/js")));
 
+// Service Worker must be served from root scope
+app.get("/sw.js", (_req, res) => {
+  res.sendFile(path.join(__dirname, "public/sw.js"));
+});
+
 // Login page (always public)
 app.get("/login", (_req, res) => {
   res.sendFile(path.join(__dirname, "public/login.html"));

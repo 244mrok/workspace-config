@@ -20,6 +20,18 @@
   let pollTimer = null;
   let userEmail = null;
 
+  // --- Service Worker (caches photo bytes in browser) ---
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+
+  function clearSwCache() {
+    if ("caches" in window) {
+      caches.delete("photo-cache-v1");
+    }
+  }
+
+  // --- localStorage helpers (photo list per user email) ---
   function storageKey() {
     return userEmail ? `photos_${userEmail}` : null;
   }
@@ -134,6 +146,7 @@
     try {
       await fetch("/auth/disconnect", { method: "POST" });
       clearPhotosFromLocal();
+      clearSwCache();
       checkStatus();
     } catch (_) {
       alert("Failed to disconnect");
@@ -256,68 +269,77 @@
   });
 
   // --- Load photo grid ---
+  function renderPhotoGrid(photos) {
+    photoGrid.innerHTML = "";
+
+    if (photos.length === 0) {
+      emptyState.style.display = "block";
+      return;
+    }
+
+    emptyState.style.display = "none";
+
+    photos.forEach((photo) => {
+      const card = document.createElement("div");
+      card.className = "photo-card";
+
+      const img = document.createElement("img");
+      img.src = photo.url;
+      img.alt = photo.filename;
+      img.loading = "lazy";
+
+      const btn = document.createElement("button");
+      btn.className = "delete-btn";
+      btn.textContent = "\u00d7";
+      btn.title = "Remove from slideshow";
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        deletePhoto(photo.id);
+      });
+
+      card.appendChild(img);
+      card.appendChild(btn);
+      photoGrid.appendChild(card);
+    });
+  }
+
   async function loadPhotos() {
     try {
       const res = await fetch("/api/photos");
       if (handleAuthError(res)) return;
       let photos = await res.json();
 
-      // If server returned empty, try restoring from localStorage
-      if (photos.length === 0) {
-        const saved = loadPhotosFromLocal();
-        if (saved && saved.length > 0) {
-          // Send saved items back to server to restore its cache
-          await fetch("/api/photos/restore", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ items: saved.filter((p) => p.source === "google") }),
-          });
-          // Re-fetch to get the restored list
-          const res2 = await fetch("/api/photos");
-          if (res2.ok) {
-            photos = await res2.json();
-          }
-        }
-      }
-
-      // Save to localStorage for next time
       if (photos.length > 0) {
+        // Server has photos — save to localStorage and render
         savePhotosToLocal(photos);
-      }
-
-      photoGrid.innerHTML = "";
-
-      if (photos.length === 0) {
-        emptyState.style.display = "block";
+        renderPhotoGrid(photos);
         return;
       }
 
-      emptyState.style.display = "none";
+      // Server returned empty — use localStorage as source of truth
+      const saved = loadPhotosFromLocal();
+      if (saved && saved.length > 0) {
+        // Render immediately from localStorage (SW cache has the bytes)
+        renderPhotoGrid(saved);
 
-      photos.forEach((photo) => {
-        const card = document.createElement("div");
-        card.className = "photo-card";
+        // Also restore the server cache in the background
+        const googleItems = saved.filter((p) => p.source === "google");
+        if (googleItems.length > 0) {
+          fetch("/api/photos/restore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items: googleItems }),
+          }).catch(() => {});
+        }
+        return;
+      }
 
-        const img = document.createElement("img");
-        img.src = photo.url;
-        img.alt = photo.filename;
-        img.loading = "lazy";
-
-        const btn = document.createElement("button");
-        btn.className = "delete-btn";
-        btn.textContent = "\u00d7";
-        btn.title = "Remove from slideshow";
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          deletePhoto(photo.id);
-        });
-
-        card.appendChild(img);
-        card.appendChild(btn);
-        photoGrid.appendChild(card);
-      });
+      // Nothing anywhere — show empty state
+      renderPhotoGrid([]);
     } catch (_) {
-      // Silent fail
+      // Network error — try localStorage
+      const saved = loadPhotosFromLocal();
+      renderPhotoGrid(saved || []);
     }
   }
 
