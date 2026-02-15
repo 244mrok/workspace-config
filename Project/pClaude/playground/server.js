@@ -22,6 +22,7 @@ app.use(
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, "data");
 const UPLOADS_DIR = path.join(__dirname, "uploads");
+const PHOTO_CACHE_DIR = path.join(DATA_DIR, "photo-cache");
 const TOKENS_PATH = path.join(DATA_DIR, "tokens.json");
 const CONFIG_PATH = path.join(DATA_DIR, "config.json");
 
@@ -34,6 +35,9 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR);
+}
+if (!fs.existsSync(PHOTO_CACHE_DIR)) {
+  fs.mkdirSync(PHOTO_CACHE_DIR, { recursive: true });
 }
 
 // --- Multer (local uploads) ---
@@ -105,6 +109,27 @@ function saveConfig(config) {
 function deleteConfig() {
   if (fs.existsSync(CONFIG_PATH)) {
     fs.unlinkSync(CONFIG_PATH);
+  }
+}
+
+// --- Disk Cache Helpers ---
+function getCachePath(photoId) {
+  const safeName = Buffer.from(photoId).toString("hex");
+  return path.join(PHOTO_CACHE_DIR, safeName);
+}
+
+function clearPhotoCache() {
+  if (fs.existsSync(PHOTO_CACHE_DIR)) {
+    for (const file of fs.readdirSync(PHOTO_CACHE_DIR)) {
+      fs.unlinkSync(path.join(PHOTO_CACHE_DIR, file));
+    }
+  }
+}
+
+function deleteCachedPhoto(photoId) {
+  const cachePath = getCachePath(photoId);
+  if (fs.existsSync(cachePath)) {
+    fs.unlinkSync(cachePath);
   }
 }
 
@@ -372,6 +397,7 @@ app.post("/auth/disconnect", auth.requireAuth("admin"), (_req, res) => {
   deleteTokens();
   deleteConfig();
   photoCache = { items: [], fetchedAt: 0 };
+  clearPhotoCache();
   res.json({ ok: true });
 });
 
@@ -454,6 +480,7 @@ app.post("/api/picker/confirm", auth.requireAuth("admin"), async (req, res) => {
       fetchedAt: Date.now(),
     };
 
+    clearPhotoCache();
     res.json({ ok: true, photoCount: photoCache.items.length });
   } catch (err) {
     console.error("Confirm picker error:", err.message);
@@ -524,6 +551,7 @@ app.post("/api/photos/shuffle", auth.requireAuth("admin"), async (req, res) => {
     fetchedAt: Date.now(),
   };
 
+  clearPhotoCache();
   res.json({ ok: true, photoCount: selected.length, totalAvailable: allItems.length });
 });
 
@@ -555,6 +583,7 @@ app.delete("/api/photos/:id", auth.requireAuth("admin"), (_req, res) => {
     return res.status(404).json({ error: "Photo not found" });
   }
   photoCache.items.splice(index, 1);
+  deleteCachedPhoto(photoId);
 
   const config = loadConfig();
   if (config) {
@@ -606,13 +635,21 @@ app.get("/api/photos", auth.requireAuth("viewer"), async (_req, res) => {
   res.json([...googlePhotos, ...localPhotos]);
 });
 
-// GET /api/photo/:id — Image proxy: fetches bytes from Google with auth header
+// GET /api/photo/:id — Image proxy: fetches bytes from Google with auth header (disk-cached)
 app.get("/api/photo/:id", auth.requireAuth("viewer"), async (req, res) => {
   const photoId = req.params.id;
   const item = photoCache.items.find((p) => p.id === photoId);
 
   if (!item) {
     return res.status(404).json({ error: "Photo not found" });
+  }
+
+  // Serve from disk cache if available
+  const cachePath = getCachePath(photoId);
+  if (fs.existsSync(cachePath)) {
+    res.set("Content-Type", item.mimeType);
+    res.set("Cache-Control", "private, max-age=86400");
+    return res.send(fs.readFileSync(cachePath));
   }
 
   try {
@@ -639,9 +676,10 @@ app.get("/api/photo/:id", auth.requireAuth("viewer"), async (req, res) => {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
           if (retryResponse.ok) {
-            res.set("Content-Type", refreshedItem.mimeType);
-            res.set("Cache-Control", "private, max-age=1800");
             const buffer = Buffer.from(await retryResponse.arrayBuffer());
+            fs.writeFileSync(cachePath, buffer);
+            res.set("Content-Type", refreshedItem.mimeType);
+            res.set("Cache-Control", "private, max-age=86400");
             return res.send(buffer);
           }
         }
@@ -649,9 +687,10 @@ app.get("/api/photo/:id", auth.requireAuth("viewer"), async (req, res) => {
       return res.status(response.status).json({ error: "Failed to fetch photo" });
     }
 
-    res.set("Content-Type", item.mimeType);
-    res.set("Cache-Control", "private, max-age=1800");
     const buffer = Buffer.from(await response.arrayBuffer());
+    fs.writeFileSync(cachePath, buffer);
+    res.set("Content-Type", item.mimeType);
+    res.set("Cache-Control", "private, max-age=86400");
     res.send(buffer);
   } catch (err) {
     console.error("Photo proxy error:", err.message);
