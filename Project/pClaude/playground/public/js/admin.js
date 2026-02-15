@@ -2,7 +2,7 @@
   const connectBtn = document.getElementById("connect-btn");
   const disconnectBtn = document.getElementById("disconnect-btn");
   const pickBtn = document.getElementById("pick-btn");
-  const randomBtn = document.getElementById("random-btn");
+  const shuffleBtn = document.getElementById("shuffle-btn");
   const statusDisconnected = document.getElementById("status-disconnected");
   const statusConnected = document.getElementById("status-connected");
   const connectedText = document.getElementById("connected-text");
@@ -65,8 +65,10 @@
 
         if (data.photoCount > 0) {
           connectedText.textContent = `Connected — ${data.photoCount} photo${data.photoCount !== 1 ? "s" : ""} from Google Photos`;
+          shuffleBtn.style.display = "inline-block";
         } else {
           connectedText.textContent = "Connected to Google Photos";
+          shuffleBtn.style.display = "none";
         }
       } else {
         statusDisconnected.style.display = "block";
@@ -189,28 +191,30 @@
     }
   });
 
-  // --- Random photos from library ---
-  randomBtn.addEventListener("click", async () => {
-    randomBtn.disabled = true;
-    pickBtn.disabled = true;
-    pickerStatus.textContent = "Fetching random photos from your library...";
+  // --- Shuffle photos ---
+  shuffleBtn.addEventListener("click", async () => {
+    shuffleBtn.disabled = true;
+    pickerStatus.textContent = "Shuffling photos...";
 
     try {
-      const res = await fetch("/api/library/random", { method: "POST" });
+      const res = await fetch("/api/photos/shuffle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: 50 }),
+      });
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to fetch random photos");
+        throw new Error(data.error || "Failed to shuffle photos");
       }
 
-      pickerStatus.textContent = `Done! ${data.photoCount} random photo${data.photoCount !== 1 ? "s" : ""} loaded.`;
+      pickerStatus.textContent = `Shuffled! Showing ${data.photoCount} of ${data.totalAvailable} photos.`;
       setTimeout(() => { pickerStatus.textContent = ""; }, 3000);
       checkStatus();
     } catch (err) {
       pickerStatus.textContent = "Error: " + err.message;
     } finally {
-      randomBtn.disabled = false;
-      pickBtn.disabled = false;
+      shuffleBtn.disabled = false;
     }
   });
 
