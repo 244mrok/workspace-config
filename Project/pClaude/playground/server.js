@@ -220,6 +220,19 @@ async function fetchAllMediaItems(sessionId, accessToken) {
   return allItems;
 }
 
+// Restore photo cache from saved config items (fallback when Picker API unavailable)
+function restoreFromConfig(config) {
+  if (config && config.savedItems && config.savedItems.length > 0) {
+    photoCache = {
+      items: config.savedItems,
+      fetchedAt: Date.now(),
+    };
+    console.log(`Restored ${photoCache.items.length} photos from saved config`);
+    return true;
+  }
+  return false;
+}
+
 // Refresh the photo cache from the stored picker session
 async function refreshCache() {
   const config = loadConfig();
@@ -230,7 +243,10 @@ async function refreshCache() {
 
   const accessToken = await getAccessToken();
   if (!accessToken) {
-    photoCache = { items: [], fetchedAt: 0 };
+    // No valid token — fall back to saved items
+    if (!restoreFromConfig(config)) {
+      photoCache = { items: [], fetchedAt: 0 };
+    }
     return;
   }
 
@@ -251,9 +267,15 @@ async function refreshCache() {
         })),
       fetchedAt: Date.now(),
     };
+    // Persist items to config so they survive session expiry / server restarts
+    config.savedItems = photoCache.items;
+    saveConfig(config);
   } catch (err) {
     console.error("Failed to refresh photo cache:", err.message);
-    // Keep stale cache rather than clearing
+    // Picker session likely expired — fall back to saved items
+    if (!restoreFromConfig(config)) {
+      // Keep stale in-memory cache rather than clearing
+    }
   }
 }
 
@@ -460,13 +482,6 @@ app.post("/api/picker/confirm", auth.requireAuth("admin"), async (req, res) => {
     // Fetch media items from the session
     const mediaItems = await fetchAllMediaItems(sessionId, accessToken);
 
-    // Save session config
-    saveConfig({
-      sessionId,
-      mediaItemIds: mediaItems.map((item) => item.id),
-      confirmedAt: new Date().toISOString(),
-    });
-
     // Populate cache
     photoCache = {
       items: mediaItems
@@ -479,6 +494,14 @@ app.post("/api/picker/confirm", auth.requireAuth("admin"), async (req, res) => {
         })),
       fetchedAt: Date.now(),
     };
+
+    // Save session config with full items for persistence
+    saveConfig({
+      sessionId,
+      mediaItemIds: photoCache.items.map((item) => item.id),
+      savedItems: photoCache.items,
+      confirmedAt: new Date().toISOString(),
+    });
 
     clearPhotoCache();
     res.json({ ok: true, photoCount: photoCache.items.length });
@@ -542,6 +565,7 @@ app.post("/api/photos/shuffle", auth.requireAuth("admin"), async (req, res) => {
   saveConfig({
     ...config,
     mediaItemIds: selected.map((item) => item.id),
+    savedItems: selected,
     shuffledAt: new Date().toISOString(),
   });
 
@@ -588,6 +612,9 @@ app.delete("/api/photos/:id", auth.requireAuth("admin"), (_req, res) => {
   const config = loadConfig();
   if (config) {
     config.mediaItemIds = config.mediaItemIds.filter((id) => id !== photoId);
+    if (config.savedItems) {
+      config.savedItems = config.savedItems.filter((item) => item.id !== photoId);
+    }
     saveConfig(config);
   }
 
