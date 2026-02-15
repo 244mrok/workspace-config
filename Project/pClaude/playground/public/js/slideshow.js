@@ -130,6 +130,11 @@
         showNext();
       }
     }, POLL_INTERVAL);
+
+    // Keep-alive ping to prevent Render from spinning down the server
+    setInterval(() => {
+      fetch("/api/me").catch(() => {});
+    }, 5 * 60 * 1000); // every 5 minutes
   }
 
   init();
