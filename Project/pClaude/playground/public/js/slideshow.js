@@ -8,6 +8,29 @@
   let paused = false;
   let advanceTimer = null;
   let wakeLock = null;
+  let userEmail = null;
+
+  function storageKey() {
+    return userEmail ? `photos_${userEmail}` : null;
+  }
+
+  function savePhotosToLocal(list) {
+    const key = storageKey();
+    if (key && list.length > 0) {
+      localStorage.setItem(key, JSON.stringify(list));
+    }
+  }
+
+  function loadPhotosFromLocal() {
+    const key = storageKey();
+    if (!key) return null;
+    try {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   const container = document.getElementById("slideshow");
   const pauseIndicator = document.getElementById("pause-indicator");
@@ -39,7 +62,28 @@
         window.location.href = "/login";
         return;
       }
-      const data = await res.json();
+      let data = await res.json();
+
+      // If server returned empty, try restoring from localStorage
+      if (data.length === 0) {
+        const saved = loadPhotosFromLocal();
+        if (saved && saved.length > 0) {
+          await fetch("/api/photos/restore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items: saved.filter((p) => p.source === "google") }),
+          });
+          const res2 = await fetch("/api/photos");
+          if (res2.ok) {
+            data = await res2.json();
+          }
+        }
+      }
+
+      if (data.length > 0) {
+        savePhotosToLocal(data);
+      }
+
       photos = data;
       if (photos.length === 0) {
         emptyMessage.style.display = "flex";
@@ -116,6 +160,15 @@
 
   // --- Init ---
   async function init() {
+    // Get user email for localStorage key
+    try {
+      const meRes = await fetch("/api/me");
+      if (meRes.ok) {
+        const me = await meRes.json();
+        userEmail = me.email;
+      }
+    } catch (_) {}
+
     await fetchPhotos();
     if (photos.length > 0) {
       showNext();

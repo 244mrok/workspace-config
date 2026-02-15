@@ -18,6 +18,34 @@
   const progressFill = progressBar.querySelector(".fill");
 
   let pollTimer = null;
+  let userEmail = null;
+
+  function storageKey() {
+    return userEmail ? `photos_${userEmail}` : null;
+  }
+
+  function savePhotosToLocal(photos) {
+    const key = storageKey();
+    if (key && photos.length > 0) {
+      localStorage.setItem(key, JSON.stringify(photos));
+    }
+  }
+
+  function loadPhotosFromLocal() {
+    const key = storageKey();
+    if (!key) return null;
+    try {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function clearPhotosFromLocal() {
+    const key = storageKey();
+    if (key) localStorage.removeItem(key);
+  }
 
   // --- Handle 401 globally ---
   function handleAuthError(res) {
@@ -34,6 +62,7 @@
       const res = await fetch("/api/me");
       if (handleAuthError(res)) return;
       const user = await res.json();
+      userEmail = user.email;
       const userInfo = document.getElementById("user-info");
       const userName = document.getElementById("user-name");
       const logoutBtn = document.getElementById("logout-btn");
@@ -104,6 +133,7 @@
     }
     try {
       await fetch("/auth/disconnect", { method: "POST" });
+      clearPhotosFromLocal();
       checkStatus();
     } catch (_) {
       alert("Failed to disconnect");
@@ -230,7 +260,30 @@
     try {
       const res = await fetch("/api/photos");
       if (handleAuthError(res)) return;
-      const photos = await res.json();
+      let photos = await res.json();
+
+      // If server returned empty, try restoring from localStorage
+      if (photos.length === 0) {
+        const saved = loadPhotosFromLocal();
+        if (saved && saved.length > 0) {
+          // Send saved items back to server to restore its cache
+          await fetch("/api/photos/restore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ items: saved.filter((p) => p.source === "google") }),
+          });
+          // Re-fetch to get the restored list
+          const res2 = await fetch("/api/photos");
+          if (res2.ok) {
+            photos = await res2.json();
+          }
+        }
+      }
+
+      // Save to localStorage for next time
+      if (photos.length > 0) {
+        savePhotosToLocal(photos);
+      }
 
       photoGrid.innerHTML = "";
 
@@ -358,6 +411,5 @@
   }
 
   // --- Init ---
-  loadUser();
-  checkStatus();
+  loadUser().then(() => checkStatus());
 })();

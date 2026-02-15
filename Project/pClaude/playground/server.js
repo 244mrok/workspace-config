@@ -579,6 +579,40 @@ app.post("/api/photos/shuffle", auth.requireAuth("admin"), async (req, res) => {
   res.json({ ok: true, photoCount: selected.length, totalAvailable: allItems.length });
 });
 
+// POST /api/photos/restore — Restore photo cache from browser localStorage
+app.post("/api/photos/restore", auth.requireAuth("viewer"), (req, res) => {
+  const { items } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: "items array required" });
+  }
+
+  // Only restore if server has no photos currently
+  if (photoCache.items.length > 0) {
+    return res.json({ ok: true, restored: false, photoCount: photoCache.items.length });
+  }
+
+  photoCache = {
+    items: items.map((item) => ({
+      id: item.id,
+      baseUrl: item.baseUrl || "",
+      mimeType: item.mimeType || "image/jpeg",
+      filename: item.filename || item.id,
+    })),
+    fetchedAt: Date.now(),
+  };
+
+  // Also save to config for persistence
+  saveConfig({
+    sessionId: loadConfig()?.sessionId || "restored",
+    mediaItemIds: photoCache.items.map((item) => item.id),
+    savedItems: photoCache.items,
+    restoredAt: new Date().toISOString(),
+  });
+
+  console.log(`Restored ${photoCache.items.length} photos from browser localStorage`);
+  res.json({ ok: true, restored: true, photoCount: photoCache.items.length });
+});
+
 // --- Local Upload Routes ---
 
 // POST /api/upload — Upload local photos
@@ -653,6 +687,7 @@ app.get("/api/photos", auth.requireAuth("viewer"), async (_req, res) => {
   const googlePhotos = photoCache.items.map((item) => ({
     id: item.id,
     filename: item.filename,
+    mimeType: item.mimeType,
     url: `/api/photo/${encodeURIComponent(item.id)}`,
     source: "google",
   }));
