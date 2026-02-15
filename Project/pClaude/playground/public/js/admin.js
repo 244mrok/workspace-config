@@ -18,7 +18,6 @@
   const progressFill = progressBar.querySelector(".fill");
 
   let pollTimer = null;
-  let userEmail = null;
 
   // --- Service Worker (caches photo bytes in browser) ---
   if ("serviceWorker" in navigator) {
@@ -31,32 +30,22 @@
     }
   }
 
-  // --- localStorage helpers (photo list per user email) ---
-  function storageKey() {
-    return userEmail ? `photos_${userEmail}` : null;
-  }
+  // --- localStorage helpers ---
+  const STORAGE_KEY = "slideshow_photos";
 
   function savePhotosToLocal(photos) {
-    const key = storageKey();
-    if (key && photos.length > 0) {
-      localStorage.setItem(key, JSON.stringify(photos));
+    if (photos.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(photos));
     }
   }
 
   function loadPhotosFromLocal() {
-    const key = storageKey();
-    if (!key) return null;
     try {
-      const data = localStorage.getItem(key);
+      const data = localStorage.getItem(STORAGE_KEY);
       return data ? JSON.parse(data) : null;
     } catch (_) {
       return null;
     }
-  }
-
-  function clearPhotosFromLocal() {
-    const key = storageKey();
-    if (key) localStorage.removeItem(key);
   }
 
   // --- Handle 401 globally ---
@@ -74,7 +63,6 @@
       const res = await fetch("/api/me");
       if (handleAuthError(res)) return;
       const user = await res.json();
-      userEmail = user.email;
       const userInfo = document.getElementById("user-info");
       const userName = document.getElementById("user-name");
       const logoutBtn = document.getElementById("logout-btn");

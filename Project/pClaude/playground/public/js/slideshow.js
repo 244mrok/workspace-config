@@ -8,7 +8,6 @@
   let paused = false;
   let advanceTimer = null;
   let wakeLock = null;
-  let userEmail = null;
 
   // --- Service Worker (caches photo bytes in browser) ---
   if ("serviceWorker" in navigator) {
@@ -16,22 +15,17 @@
   }
 
   // --- localStorage helpers ---
-  function storageKey() {
-    return userEmail ? `photos_${userEmail}` : null;
-  }
+  const STORAGE_KEY = "slideshow_photos";
 
   function savePhotosToLocal(list) {
-    const key = storageKey();
-    if (key && list.length > 0) {
-      localStorage.setItem(key, JSON.stringify(list));
+    if (list.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
     }
   }
 
   function loadPhotosFromLocal() {
-    const key = storageKey();
-    if (!key) return null;
     try {
-      const data = localStorage.getItem(key);
+      const data = localStorage.getItem(STORAGE_KEY);
       return data ? JSON.parse(data) : null;
     } catch (_) {
       return null;
@@ -179,15 +173,6 @@
 
   // --- Init ---
   async function init() {
-    // Get user email for localStorage key
-    try {
-      const meRes = await fetch("/api/me");
-      if (meRes.ok) {
-        const me = await meRes.json();
-        userEmail = me.email;
-      }
-    } catch (_) {}
-
     await fetchPhotos();
     if (photos.length > 0) {
       showNext();
