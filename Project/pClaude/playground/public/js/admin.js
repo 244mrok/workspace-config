@@ -3,6 +3,7 @@
   const disconnectBtn = document.getElementById("disconnect-btn");
   const pickBtn = document.getElementById("pick-btn");
   const shuffleBtn = document.getElementById("shuffle-btn");
+  const shuffleCount = document.getElementById("shuffle-count");
   const statusDisconnected = document.getElementById("status-disconnected");
   const statusConnected = document.getElementById("status-connected");
   const connectedText = document.getElementById("connected-text");
@@ -66,9 +67,11 @@
         if (data.photoCount > 0) {
           connectedText.textContent = `Connected — ${data.photoCount} photo${data.photoCount !== 1 ? "s" : ""} from Google Photos`;
           shuffleBtn.style.display = "inline-block";
+          shuffleCount.style.display = "inline-block";
         } else {
           connectedText.textContent = "Connected to Google Photos";
           shuffleBtn.style.display = "none";
+          shuffleCount.style.display = "none";
         }
       } else {
         statusDisconnected.style.display = "block";
@@ -194,13 +197,14 @@
   // --- Shuffle photos ---
   shuffleBtn.addEventListener("click", async () => {
     shuffleBtn.disabled = true;
+    const count = parseInt(shuffleCount.value) || 0;
     pickerStatus.textContent = "Shuffling photos...";
 
     try {
       const res = await fetch("/api/photos/shuffle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ count: 50 }),
+        body: JSON.stringify({ count }),
       });
       const data = await res.json();
 
@@ -208,7 +212,10 @@
         throw new Error(data.error || "Failed to shuffle photos");
       }
 
-      pickerStatus.textContent = `Shuffled! Showing ${data.photoCount} of ${data.totalAvailable} photos.`;
+      const label = count === 0
+        ? `Shuffled all ${data.photoCount} photos.`
+        : `Shuffled! Showing ${data.photoCount} of ${data.totalAvailable} photos.`;
+      pickerStatus.textContent = label;
       setTimeout(() => { pickerStatus.textContent = ""; }, 3000);
       checkStatus();
     } catch (err) {

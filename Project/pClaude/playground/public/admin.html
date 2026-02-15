@@ -295,9 +295,15 @@
       <h2>Photo Selection</h2>
       <div class="btn-group">
         <button class="btn btn-primary" id="pick-btn">Select Photos</button>
-        <button class="btn btn-secondary" id="shuffle-btn" style="display:none;">Shuffle (50)</button>
+        <button class="btn btn-secondary" id="shuffle-btn" style="display:none;">Shuffle</button>
+        <select id="shuffle-count" style="display:none; padding:0.5rem; border-radius:8px; border:1px solid #ddd; font-size:0.9rem;">
+          <option value="50">50 photos</option>
+          <option value="100" selected>100 photos</option>
+          <option value="200">200 photos</option>
+          <option value="0">All photos</option>
+        </select>
       </div>
-      <p class="info-text">Select photos from Google Photos. Use <strong>Shuffle</strong> to randomly pick 50 from your selection.</p>
+      <p class="info-text">Select a large batch from Google Photos (tip: use "Select all" in an album), then <strong>Shuffle</strong> to randomly pick a subset for the slideshow.</p>
       <div id="picker-status"></div>
     </div>
 

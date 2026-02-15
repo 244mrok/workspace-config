@@ -473,21 +473,43 @@ function shuffleArray(arr) {
 }
 
 // POST /api/photos/shuffle — Randomly pick N photos from current selection
-app.post("/api/photos/shuffle", auth.requireAuth("admin"), (req, res) => {
-  const count = Math.min(Math.max(parseInt(req.body.count) || 50, 1), 200);
-
-  if (photoCache.items.length === 0) {
-    return res.status(400).json({ error: "No photos to shuffle. Select photos first using the picker." });
-  }
-
+app.post("/api/photos/shuffle", auth.requireAuth("admin"), async (req, res) => {
   const config = loadConfig();
   if (!config || !config.sessionId) {
     return res.status(400).json({ error: "No picker session. Select photos first." });
   }
 
-  // Shuffle all cached items and pick a subset
-  const shuffled = shuffleArray([...photoCache.items]);
-  const selected = shuffled.slice(0, count);
+  // Always re-fetch all items from the picker session to get the full set
+  const accessToken = await getAccessToken();
+  if (!accessToken) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
+  let allItems;
+  try {
+    const mediaItems = await fetchAllMediaItems(config.sessionId, accessToken);
+    allItems = mediaItems
+      .filter((item) => item.mediaFile && item.mediaFile.baseUrl)
+      .map((item) => ({
+        id: item.id,
+        baseUrl: item.mediaFile.baseUrl,
+        mimeType: item.mediaFile.mimeType || "image/jpeg",
+        filename: item.mediaFile.filename || item.id,
+      }));
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch photos: " + err.message });
+  }
+
+  if (allItems.length === 0) {
+    return res.status(400).json({ error: "No photos found in picker session." });
+  }
+
+  // Shuffle all items
+  const shuffled = shuffleArray([...allItems]);
+
+  // count=0 means keep all (just shuffle order)
+  const rawCount = parseInt(req.body.count);
+  const selected = rawCount === 0 ? shuffled : shuffled.slice(0, Math.min(Math.max(rawCount || 100, 1), shuffled.length));
 
   // Update config to only include the selected subset
   saveConfig({
@@ -499,10 +521,10 @@ app.post("/api/photos/shuffle", auth.requireAuth("admin"), (req, res) => {
   // Update cache to the shuffled subset
   photoCache = {
     items: selected,
-    fetchedAt: photoCache.fetchedAt,
+    fetchedAt: Date.now(),
   };
 
-  res.json({ ok: true, photoCount: selected.length, totalAvailable: shuffled.length });
+  res.json({ ok: true, photoCount: selected.length, totalAvailable: allItems.length });
 });
 
 // --- Local Upload Routes ---
