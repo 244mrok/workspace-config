@@ -1,0 +1,16 @@
+disabled_rules:
+  - trailing_whitespace
+  - line_length
+  - todo
+
+opt_in_rules:
+  - empty_count
+  - closure_body_length
+
+line_length:
+  warning: 150
+  error: 200
+
+excluded:
+  - .build
+  - HeroAcademia.xcodeproj

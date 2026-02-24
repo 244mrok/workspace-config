@@ -21,3 +21,15 @@
 !Project/pClaude/playground/auth.js
 !Project/pClaude/playground/public/
 !Project/pClaude/playground/public/**
+!Project/pClaude/healthcare/
+!Project/pClaude/healthcare/CLAUDE.md
+!Project/pClaude/healthcare/project.yml
+!Project/pClaude/healthcare/.swiftlint.yml
+!Project/pClaude/healthcare/HeroAcademia/
+!Project/pClaude/healthcare/HeroAcademia/**
+!Project/pClaude/healthcare/HeroAcademiaWatch/
+!Project/pClaude/healthcare/HeroAcademiaWatch/**
+!Project/pClaude/healthcare/HeroAcademiaTests/
+!Project/pClaude/healthcare/HeroAcademiaTests/**
+!Project/pClaude/healthcare/tasks/
+!Project/pClaude/healthcare/tasks/**

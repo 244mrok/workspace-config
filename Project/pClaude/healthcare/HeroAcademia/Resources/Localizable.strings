@@ -1,0 +1,48 @@
+/* Common */
+"app.name" = "HeroAcademia";
+"common.save" = "保存";
+"common.cancel" = "キャンセル";
+"common.delete" = "削除";
+"common.edit" = "編集";
+"common.done" = "完了";
+"common.error" = "エラー";
+"common.ok" = "OK";
+"common.loading" = "読み込み中...";
+
+/* Auth */
+"auth.login" = "ログイン";
+"auth.signup" = "新規登録";
+"auth.email" = "メールアドレス";
+"auth.password" = "パスワード";
+"auth.logout" = "ログアウト";
+"auth.login.title" = "ログイン";
+"auth.signup.title" = "アカウント作成";
+
+/* Measurement */
+"measurement.title" = "計測記録";
+"measurement.add" = "計測を記録";
+"measurement.weight" = "体重";
+"measurement.bodyFat" = "体脂肪率";
+"measurement.bmi" = "BMI";
+"measurement.muscleMass" = "筋肉量";
+"measurement.visceralFat" = "内臓脂肪レベル";
+"measurement.metabolicAge" = "体内年齢";
+"measurement.source" = "データソース";
+"measurement.date" = "計測日時";
+"measurement.empty" = "計測データがありません";
+"measurement.delete.confirm" = "この計測記録を削除しますか？";
+
+/* Goal */
+"goal.title" = "目標";
+"goal.weight" = "体重目標";
+"goal.bodyFat" = "体脂肪率目標";
+"goal.target" = "目標値";
+"goal.deadline" = "期限";
+"goal.progress" = "進捗";
+"goal.remaining" = "残り";
+"goal.days" = "日";
+
+/* Units */
+"unit.kg" = "kg";
+"unit.percent" = "%";
+"unit.years" = "歳";
