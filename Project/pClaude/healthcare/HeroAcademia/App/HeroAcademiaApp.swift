@@ -4,6 +4,7 @@ import FirebaseCore
 @main
 struct HeroAcademiaApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @State private var watchConnectivity = WatchConnectivityService()
 
     init() {
         // Ensure Firebase is configured before any view or service is created.
@@ -17,7 +18,10 @@ struct HeroAcademiaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootView(watchConnectivity: watchConnectivity)
+                .onAppear {
+                    watchConnectivity.activate()
+                }
         }
     }
 }

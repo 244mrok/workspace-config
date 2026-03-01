@@ -3,6 +3,7 @@ import SwiftUI
 struct MeasurementInputView: View {
     @Bindable var viewModel: MeasurementViewModel
     var onDismiss: () -> Void
+    @State private var showSaveConfirmation = false
 
     var body: some View {
         Form {
@@ -63,10 +64,22 @@ struct MeasurementInputView: View {
                     Task {
                         await viewModel.addMeasurement()
                         if viewModel.errorMessage == nil {
+                            withAnimation {
+                                showSaveConfirmation = true
+                            }
+                            try? await Task.sleep(for: .seconds(0.8))
                             onDismiss()
                         }
                     }
                 }
+            }
+        }
+        .overlay {
+            if showSaveConfirmation {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 60))
+                    .foregroundStyle(.green)
+                    .transition(.scale.combined(with: .opacity))
             }
         }
     }

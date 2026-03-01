@@ -3,12 +3,21 @@ import SwiftUI
 struct DashboardView: View {
     @Bindable var viewModel: DashboardViewModel
     @Bindable var goalViewModel: GoalViewModel
+    var watchConnectivity: WatchConnectivityService?
     @State private var showingGoalSetting = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    if viewModel.isLoading && viewModel.measurements.isEmpty {
+                        // Shimmer loading state
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(.regularMaterial)
+                            .frame(height: 120)
+                            .shimmer()
+                    }
+
                     // Latest stats card
                     latestStatsCard
 
@@ -41,7 +50,16 @@ struct DashboardView: View {
 
                     // Streak
                     if viewModel.streak > 0 {
-                        streakBadge
+                        NavigationLink {
+                            BadgeListView(
+                                viewModel: BadgeViewModel(
+                                    firebaseService: viewModel.firebaseServiceForBadges
+                                )
+                            )
+                        } label: {
+                            streakBadge
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding()
@@ -49,10 +67,12 @@ struct DashboardView: View {
             .navigationTitle("ダッシュボード")
             .refreshable {
                 await viewModel.loadAll()
+                sendWatchData()
             }
             .task {
                 await viewModel.loadAll()
                 await goalViewModel.loadGoals()
+                sendWatchData()
             }
             .sheet(isPresented: $showingGoalSetting) {
                 GoalSettingView(viewModel: goalViewModel)
@@ -112,6 +132,8 @@ struct DashboardView: View {
                 .foregroundStyle(.blue)
             Text(value ?? "--")
                 .font(.title2.bold())
+                .contentTransition(.numericText())
+                .animation(.default, value: value)
             Text(unit.isEmpty ? title : "\(title)(\(unit))")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -123,11 +145,30 @@ struct DashboardView: View {
         HStack {
             Image(systemName: "flame.fill")
                 .foregroundStyle(.orange)
+                .symbolEffect(.bounce, value: viewModel.streak)
             Text("\(viewModel.streak)日連続記録中")
                 .font(.subheadline.bold())
+                .contentTransition(.numericText())
             Spacer()
         }
         .padding()
         .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    // MARK: - Watch Data
+
+    private func sendWatchData() {
+        guard let watchConnectivity else { return }
+        let data = WatchData(
+            latestWeight: viewModel.latestWeight,
+            latestBodyFat: viewModel.latestBodyFat,
+            goalProgress: viewModel.goalProgress,
+            goalTargetValue: viewModel.activeGoal?.targetValue,
+            goalType: viewModel.activeGoal?.type.rawValue,
+            goalDaysRemaining: viewModel.activeGoal?.daysRemaining,
+            streak: viewModel.streak
+        )
+        watchConnectivity.sendWatchData(data)
     }
 }

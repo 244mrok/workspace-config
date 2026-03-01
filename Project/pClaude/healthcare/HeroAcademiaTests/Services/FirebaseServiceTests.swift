@@ -12,6 +12,8 @@ final class MockFirebaseService: FirebaseServiceProtocol {
     var userProfile: UserProfile?
     var goals: [Goal] = []
     var devices: [HealthDevice] = []
+    var notificationSettings: NotificationSettings?
+    var badges: [Badge] = []
 
     var signUpCalled = false
     var signInCalled = false
@@ -113,6 +115,26 @@ final class MockFirebaseService: FirebaseServiceProtocol {
     func deleteDevice(id: String) async throws {
         if shouldThrowError { throw MockError.testError }
         devices.removeAll { $0.id == id }
+    }
+
+    func saveNotificationSettings(_ settings: NotificationSettings) async throws {
+        if shouldThrowError { throw MockError.testError }
+        notificationSettings = settings
+    }
+
+    func fetchNotificationSettings() async throws -> NotificationSettings? {
+        if shouldThrowError { throw MockError.testError }
+        return notificationSettings
+    }
+
+    func addBadge(_ badge: Badge) async throws {
+        if shouldThrowError { throw MockError.testError }
+        badges.append(badge)
+    }
+
+    func fetchBadges() async throws -> [Badge] {
+        if shouldThrowError { throw MockError.testError }
+        return badges
     }
 
     enum MockError: Error {

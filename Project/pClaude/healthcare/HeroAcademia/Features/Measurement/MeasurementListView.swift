@@ -21,6 +21,7 @@ struct MeasurementListView: View {
                 Task { await viewModel.deleteMeasurement(at: offsets) }
             }
         }
+        .animation(.default, value: viewModel.measurements)
         .navigationTitle("計測記録")
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {

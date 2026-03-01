@@ -70,6 +70,22 @@ struct GoalEngine {
         return Calendar.current.date(byAdding: .day, value: Int(ceil(daysToTarget)), to: last.date)
     }
 
+    /// Detect when goal progress crosses a milestone threshold (25/50/75/100%).
+    /// Returns the milestone percentage if a threshold was just crossed, nil otherwise.
+    static func milestoneReached(goal: Goal, currentValue: Double, previousValue: Double) -> Int? {
+        let currentProgress = goal.progressPercentage(currentValue: currentValue)
+        let previousProgress = goal.progressPercentage(currentValue: previousValue)
+
+        let milestones = [25, 50, 75, 100]
+        for milestone in milestones {
+            let threshold = Double(milestone)
+            if previousProgress < threshold && currentProgress >= threshold {
+                return milestone
+            }
+        }
+        return nil
+    }
+
     /// Required daily pace from current value to reach the goal by deadline.
     static func requiredDailyPace(goal: Goal, currentValue: Double) -> Double {
         let remaining = goal.targetValue - currentValue

@@ -133,6 +133,47 @@ struct GoalEngineTests {
         #expect(abs(pace - (-0.1)) < 0.01)
     }
 
+    // MARK: - Milestone Detection
+
+    @Test("Milestone — crossing 50% threshold")
+    func milestoneAt50() {
+        let goal = Goal(
+            type: .weight,
+            targetValue: 65.0,
+            startValue: 75.0,
+            deadline: Date().addingTimeInterval(86400 * 90)
+        )
+        // Progress from 40% (71.0) to 55% (69.5) — crosses 50%
+        let milestone = GoalEngine.milestoneReached(goal: goal, currentValue: 69.5, previousValue: 71.0)
+        #expect(milestone == 50)
+    }
+
+    @Test("Milestone — no threshold crossed returns nil")
+    func milestoneNoCross() {
+        let goal = Goal(
+            type: .weight,
+            targetValue: 65.0,
+            startValue: 75.0,
+            deadline: Date().addingTimeInterval(86400 * 90)
+        )
+        // Both within same bracket (40%-50%)
+        let milestone = GoalEngine.milestoneReached(goal: goal, currentValue: 71.5, previousValue: 72.0)
+        #expect(milestone == nil)
+    }
+
+    @Test("Milestone — crossing 100% threshold")
+    func milestoneAt100() {
+        let goal = Goal(
+            type: .weight,
+            targetValue: 65.0,
+            startValue: 75.0,
+            deadline: Date().addingTimeInterval(86400 * 90)
+        )
+        // Progress from 95% to 100%
+        let milestone = GoalEngine.milestoneReached(goal: goal, currentValue: 65.0, previousValue: 65.5)
+        #expect(milestone == 100)
+    }
+
     @Test("Required daily pace — past deadline")
     func requiredDailyPacePastDeadline() {
         let calendar = Calendar.current

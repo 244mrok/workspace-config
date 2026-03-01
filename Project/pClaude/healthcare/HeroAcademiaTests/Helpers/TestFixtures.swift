@@ -91,6 +91,20 @@ enum TestFixtures {
         )
     }
 
+    static func badge(
+        id: String? = "test-badge-id",
+        type: BadgeType = .streak7,
+        earnedDate: Date = Date(),
+        goalId: String? = nil
+    ) -> Badge {
+        Badge(
+            id: id,
+            type: type,
+            earnedDate: earnedDate,
+            goalId: goalId
+        )
+    }
+
     /// Generate a measurement history with a linear weight trend.
     static func measurementHistory(
         days: Int,

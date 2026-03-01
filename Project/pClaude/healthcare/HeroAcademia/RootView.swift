@@ -6,13 +6,15 @@ struct RootView: View {
     @State private var healthKitService: HealthKitService? = {
         HKHealthStore.isHealthDataAvailable() ? HealthKitService() : nil
     }()
+    var watchConnectivity: WatchConnectivityService
 
     var body: some View {
         Group {
             if firebaseService.isAuthenticated {
                 MainTabView(
                     firebaseService: firebaseService,
-                    healthKitService: healthKitService
+                    healthKitService: healthKitService,
+                    watchConnectivity: watchConnectivity
                 )
             } else {
                 NavigationStack {
@@ -22,6 +24,6 @@ struct RootView: View {
                 }
             }
         }
-        .animation(.default, value: firebaseService.isAuthenticated)
+        .animation(.spring(duration: 0.5), value: firebaseService.isAuthenticated)
     }
 }

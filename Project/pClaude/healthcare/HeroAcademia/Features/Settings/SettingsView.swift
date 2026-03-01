@@ -40,6 +40,18 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("通知設定") {
+                    NavigationLink {
+                        NotificationSettingsView(
+                            viewModel: NotificationSettingsViewModel(
+                                firebaseService: firebaseService
+                            )
+                        )
+                    } label: {
+                        Label("通知設定", systemImage: "bell")
+                    }
+                }
+
                 Section("デバイス連携") {
                     NavigationLink {
                         DeviceListView(

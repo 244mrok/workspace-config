@@ -23,6 +23,8 @@ struct GoalDetailView: View {
         return f
     }()
 
+    @State private var showCelebration = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Header
@@ -88,5 +90,15 @@ struct GoalDetailView: View {
         }
         .padding()
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            if showCelebration {
+                CelebrationView()
+            }
+        }
+        .onAppear {
+            if progress >= 100 {
+                showCelebration = true
+            }
+        }
     }
 }

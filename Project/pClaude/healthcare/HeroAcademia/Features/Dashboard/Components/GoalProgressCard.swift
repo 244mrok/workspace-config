@@ -40,10 +40,13 @@ struct GoalProgressCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 ProgressView(value: min(max(progress, 0), 1))
                     .tint(progress >= 1.0 ? .green : .blue)
+                    .animation(.easeInOut(duration: 0.8), value: progress)
 
                 Text(String(format: "%.0f%%", min(progress * 100, 100)))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
+                    .animation(.default, value: progress)
             }
 
             // Projected date

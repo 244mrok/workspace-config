@@ -226,3 +226,135 @@ HeroAcademiaTests/Services/MockHealthKitService.swift — added mock properties 
 HeroAcademiaTests/Services/FirebaseServiceTests.swift — MockFirebaseService updated with device methods
 HeroAcademiaTests/Helpers/TestFixtures.swift — added device() + measurementWithComposition() factories
 ```
+
+---
+
+# Phase 4: Watch & Polish
+
+## Status: Complete
+
+### Completed Steps
+
+- [x] Sub-Phase 4a: Smart Notifications
+  - `NotificationSettings.swift` — Codable model with reminder time, milestone, streak, weekly report toggles
+  - `NotificationService.swift` — Protocol + implementation using UNUserNotificationCenter
+    - 4 notification types: weighIn reminder, milestone, streak milestones, weekly report
+  - `GoalEngine.swift` — Added `milestoneReached(goal:currentValue:previousValue:)` for 25/50/75/100% detection
+  - `NotificationSettingsView.swift` — Settings form with toggles and time picker
+  - `NotificationSettingsViewModel.swift` — Load/save settings, schedule/cancel notifications
+  - `AppDelegate.swift` — UNUserNotificationCenterDelegate, foreground notification handling
+  - `SettingsView.swift` — Added "通知設定" section with NavigationLink
+  - `DashboardViewModel.swift` — Milestone + streak notification checking after loadAll()
+  - `FirebaseService.swift` — Added notification settings + badge CRUD to protocol + implementation
+  - `MockFirebaseService.swift` — Updated with notification + badge mock methods
+  - `GoalEngineTests.swift` — 3 new milestone detection tests
+
+- [x] Sub-Phase 4b: Streak & Badge System
+  - `Badge.swift` — BadgeType enum (16 types: streak/goal/measurement) with displayName, iconName, iconColor
+  - `BadgeService.swift` — Stateless utility `checkNewBadges()` evaluates streak, count, goal progress
+  - `BadgeListView.swift` — Grid of all badges with earned/locked states
+  - `BadgeCardView.swift` — Individual badge component with conditional coloring
+  - `BadgeViewModel.swift` — Loads badges from Firestore
+  - `BadgeServiceTests.swift` — 9 tests (streak thresholds, no duplicates, goal milestones, counts)
+  - `DashboardView.swift` — Streak badge wrapped in NavigationLink to BadgeListView
+  - `DashboardViewModel.swift` — Badge checking after loadAll(), exposes newlyEarnedBadges
+  - `TestFixtures.swift` — Added badge() factory
+
+- [x] Sub-Phase 4c: Apple Watch Companion
+  - `Shared/WatchData.swift` — Codable struct for iOS↔watchOS data exchange, UserDefaults caching
+  - `WatchConnectivityService.swift` — iOS-side WCSessionDelegate, sends data via updateApplicationContext
+  - `WatchSessionService.swift` — watchOS-side WCSessionDelegate, receives data, sends weight logs
+  - `WatchDashboardView.swift` — Weight, body fat, goal gauge, streak, quick log button
+  - `WatchViewModel.swift` — Formats WatchData for display
+  - `QuickLogView.swift` — Digital Crown weight input with 0.1kg increments, success animation
+  - `WeightComplicationWidget.swift` — WidgetKit StaticConfiguration
+  - `WeightTimelineProvider.swift` — Reads cached WatchData, hourly refresh
+  - `WeightComplicationView.swift` — Circular/Rectangular/Inline complication views
+  - `HeroAcademiaWatchApp.swift` — Updated with WatchSessionService initialization
+  - `HeroAcademiaApp.swift` — WatchConnectivityService initialization
+  - `RootView.swift` — Passes watchConnectivity through view hierarchy
+  - `MainTabView.swift` — Passes watchConnectivity + NotificationService to DashboardView
+  - `DashboardView.swift` — sendWatchData() helper after loadAll
+  - `project.yml` — Added Shared sources, WatchConnectivity + WidgetKit + UserNotifications frameworks
+  - Deleted: `HeroAcademiaWatch/ContentView.swift` (replaced by WatchDashboardView)
+
+- [x] Sub-Phase 4d: UI Polish & Animations
+  - `ShimmerModifier.swift` — Loading skeleton shimmer effect using animated LinearGradient
+  - `CelebrationView.swift` — Expanding rings + checkmark animation for goal completion
+  - `DashboardView.swift` — Shimmer loading state, `.contentTransition(.numericText())` on stats, `.symbolEffect(.bounce)` on flame, `.transition(.move+.opacity)` on streak
+  - `GoalProgressCard.swift` — `.animation(.easeInOut(duration: 0.8))` on progress bar
+  - `MeasurementInputView.swift` — Save confirmation checkmark overlay with scale+opacity transition
+  - `MeasurementListView.swift` — `.animation(.default, value: measurements)` for smooth list updates
+  - `GoalDetailView.swift` — CelebrationView overlay at 100% completion
+  - `RootView.swift` — `.spring(duration: 0.5)` auth transition
+  - `AuthView.swift` — Error message `.transition(.move(edge: .top).combined(with: .opacity))`
+
+### Test Results (103 unit tests, 12 suites)
+
+| Suite | Tests | Status |
+|-------|-------|--------|
+| AnalyticsViewModel Tests | 15 | ✅ |
+| BadgeService Tests | 9 | ✅ |
+| BodyMeasurement Tests | 4 | ✅ |
+| DashboardViewModel Tests | 10 | ✅ |
+| DeviceSyncService Tests | 10 | ✅ |
+| DeviceViewModel Tests | 8 | ✅ |
+| FirebaseService Mock Tests | 6 | ✅ |
+| GoalEngine Tests | 14 | ✅ |
+| Goal Tests | 7 | ✅ |
+| GoalViewModel Tests | 5 | ✅ |
+| HealthDevice Model Tests | 7 | ✅ |
+| MeasurementViewModel Tests | 9 | ✅ |
+
+### New Files (21 production + 1 test = 22)
+
+```
+HeroAcademia/Core/Models/NotificationSettings.swift
+HeroAcademia/Core/Models/Badge.swift
+HeroAcademia/Core/Services/NotificationService.swift
+HeroAcademia/Core/Services/BadgeService.swift
+HeroAcademia/Core/Services/WatchConnectivityService.swift
+HeroAcademia/Features/Settings/NotificationSettingsView.swift
+HeroAcademia/Features/Settings/NotificationSettingsViewModel.swift
+HeroAcademia/Features/Badges/BadgeListView.swift
+HeroAcademia/Features/Badges/BadgeCardView.swift
+HeroAcademia/Features/Badges/BadgeViewModel.swift
+HeroAcademia/Features/Components/ShimmerModifier.swift
+HeroAcademia/Features/Components/CelebrationView.swift
+Shared/WatchData.swift
+HeroAcademiaWatch/Services/WatchSessionService.swift
+HeroAcademiaWatch/Views/WatchDashboardView.swift
+HeroAcademiaWatch/Views/WatchViewModel.swift
+HeroAcademiaWatch/Views/QuickLogView.swift
+HeroAcademiaWatch/Widgets/WeightComplicationWidget.swift
+HeroAcademiaWatch/Widgets/WeightTimelineProvider.swift
+HeroAcademiaWatch/Widgets/WeightComplicationView.swift
+HeroAcademiaTests/Services/BadgeServiceTests.swift
+```
+
+### Modified Files (15)
+
+```
+HeroAcademia/App/AppDelegate.swift — UNUserNotificationCenterDelegate
+HeroAcademia/App/HeroAcademiaApp.swift — WatchConnectivityService init
+HeroAcademia/RootView.swift — watchConnectivity passthrough, spring animation
+HeroAcademia/Core/Services/FirebaseService.swift — notification settings + badge CRUD
+HeroAcademia/Core/Services/GoalEngine.swift — milestoneReached()
+HeroAcademia/Features/MainTabView.swift — watchConnectivity + NotificationService
+HeroAcademia/Features/Dashboard/DashboardView.swift — badge link, watch data, shimmer, animations
+HeroAcademia/Features/Dashboard/DashboardViewModel.swift — notifications, badges, watch data
+HeroAcademia/Features/Dashboard/Components/GoalProgressCard.swift — progress bar animation
+HeroAcademia/Features/Measurement/MeasurementInputView.swift — save confirmation
+HeroAcademia/Features/Measurement/MeasurementListView.swift — list animation
+HeroAcademia/Features/Goals/GoalDetailView.swift — celebration overlay
+HeroAcademia/Features/Settings/SettingsView.swift — 通知設定 section
+HeroAcademia/Features/Auth/AuthView.swift — error transition
+HeroAcademiaWatch/HeroAcademiaWatchApp.swift — real entry point with WatchSessionService
+project.yml — Shared sources, WatchConnectivity, WidgetKit, UserNotifications
+```
+
+### Deleted Files (1)
+
+```
+HeroAcademiaWatch/ContentView.swift — replaced by WatchDashboardView
+```

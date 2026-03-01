@@ -34,6 +34,7 @@ targets:
         buildPhase: resources
       - path: HeroAcademia/Resources/Localizable.strings
         buildPhase: resources
+      - path: Shared
     entitlements:
       path: HeroAcademia/HeroAcademia.entitlements
       properties:
@@ -54,6 +55,8 @@ targets:
       - package: firebase-ios-sdk
         product: FirebaseFirestore
       - sdk: HealthKit.framework
+      - sdk: WatchConnectivity.framework
+      - sdk: UserNotifications.framework
 
   HeroAcademiaWatch:
     type: application
@@ -61,6 +64,7 @@ targets:
     deploymentTarget: "10.0"
     sources:
       - HeroAcademiaWatch
+      - path: Shared
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.heroacademia.app.watchkitapp
@@ -68,6 +72,9 @@ targets:
         WATCHOS_DEPLOYMENT_TARGET: "10.0"
         INFOPLIST_KEY_WKApplication_InterfaceOrientation: "[]"
         INFOPLIST_KEY_WKCompanionAppBundleIdentifier: com.heroacademia.app
+    dependencies:
+      - sdk: WatchConnectivity.framework
+      - sdk: WidgetKit.framework
 
   HeroAcademiaTests:
     type: bundle.unit-test

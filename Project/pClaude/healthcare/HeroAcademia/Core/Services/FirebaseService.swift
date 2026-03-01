@@ -34,6 +34,14 @@ protocol FirebaseServiceProtocol {
     func fetchDevices() async throws -> [HealthDevice]
     func updateDevice(_ device: HealthDevice) async throws
     func deleteDevice(id: String) async throws
+
+    // Notification Settings
+    func saveNotificationSettings(_ settings: NotificationSettings) async throws
+    func fetchNotificationSettings() async throws -> NotificationSettings?
+
+    // Badges
+    func addBadge(_ badge: Badge) async throws
+    func fetchBadges() async throws -> [Badge]
 }
 
 // MARK: - Implementation
@@ -123,6 +131,14 @@ final class FirebaseService: FirebaseServiceProtocol {
 
     private func devicesCollection() throws -> CollectionReference {
         try userDocument().collection("devices")
+    }
+
+    private func badgesCollection() throws -> CollectionReference {
+        try userDocument().collection("badges")
+    }
+
+    private func settingsDocument() throws -> DocumentReference {
+        try userDocument().collection("settings").document("notifications")
     }
 
     // MARK: - Measurements
@@ -244,6 +260,36 @@ final class FirebaseService: FirebaseServiceProtocol {
     func deleteDevice(id: String) async throws {
         let collection = try devicesCollection()
         try await collection.document(id).delete()
+    }
+
+    // MARK: - Notification Settings
+
+    func saveNotificationSettings(_ settings: NotificationSettings) async throws {
+        let doc = try settingsDocument()
+        try doc.setData(from: settings)
+    }
+
+    func fetchNotificationSettings() async throws -> NotificationSettings? {
+        let doc = try settingsDocument()
+        let snapshot = try await doc.getDocument()
+        return try? snapshot.data(as: NotificationSettings.self)
+    }
+
+    // MARK: - Badges
+
+    func addBadge(_ badge: Badge) async throws {
+        let collection = try badgesCollection()
+        try collection.addDocument(from: badge)
+    }
+
+    func fetchBadges() async throws -> [Badge] {
+        let collection = try badgesCollection()
+        let snapshot = try await collection
+            .order(by: "earnedDate", descending: true)
+            .getDocuments()
+        return snapshot.documents.compactMap { doc in
+            try? doc.data(as: Badge.self)
+        }
     }
 }
 

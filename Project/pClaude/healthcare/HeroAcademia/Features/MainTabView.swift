@@ -3,12 +3,17 @@ import SwiftUI
 struct MainTabView: View {
     let firebaseService: FirebaseServiceProtocol
     let healthKitService: HealthKitServiceProtocol?
+    var watchConnectivity: WatchConnectivityService?
 
     var body: some View {
         TabView {
             DashboardView(
-                viewModel: DashboardViewModel(firebaseService: firebaseService),
-                goalViewModel: GoalViewModel(firebaseService: firebaseService)
+                viewModel: DashboardViewModel(
+                    firebaseService: firebaseService,
+                    notificationService: NotificationService()
+                ),
+                goalViewModel: GoalViewModel(firebaseService: firebaseService),
+                watchConnectivity: watchConnectivity
             )
             .tabItem {
                 Label("ダッシュボード", systemImage: "house")

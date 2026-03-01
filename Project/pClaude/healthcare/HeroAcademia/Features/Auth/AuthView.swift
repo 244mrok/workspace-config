@@ -38,6 +38,7 @@ struct AuthView: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                         .multilineTextAlignment(.center)
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
                 Button {
@@ -62,6 +63,7 @@ struct AuthView: View {
                 .accessibilityIdentifier("toggleModeButton")
             }
             .padding(.horizontal, 32)
+            .animation(.default, value: viewModel.errorMessage)
 
             Spacer()
         }
