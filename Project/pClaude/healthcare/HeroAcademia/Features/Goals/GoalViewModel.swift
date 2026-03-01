@@ -13,6 +13,9 @@ final class GoalViewModel {
     var inputStartValue: String = ""
     var inputDeadline: Date = Calendar.current.date(byAdding: .month, value: 3, to: Date()) ?? Date()
 
+    // Edit mode
+    var editingGoal: Goal?
+
     private let firebaseService: FirebaseServiceProtocol
 
     init(firebaseService: FirebaseServiceProtocol) {
@@ -63,6 +66,41 @@ final class GoalViewModel {
         }
     }
 
+    func startEditing(_ goal: Goal) {
+        editingGoal = goal
+        inputType = goal.type
+        inputTargetValue = String(format: "%.1f", goal.targetValue)
+        inputStartValue = String(format: "%.1f", goal.startValue)
+        inputDeadline = goal.deadline
+        errorMessage = nil
+    }
+
+    func updateExistingGoal() async {
+        guard let existing = editingGoal, let id = existing.id else { return }
+        guard let target = Double(inputTargetValue) else {
+            errorMessage = "目標値を正しく入力してください"
+            return
+        }
+
+        let updated = Goal(
+            id: id,
+            type: existing.type,
+            targetValue: target,
+            startValue: existing.startValue,
+            startDate: existing.startDate,
+            deadline: inputDeadline,
+            isActive: existing.isActive
+        )
+
+        do {
+            try await firebaseService.updateGoal(updated)
+            resetForm()
+            await loadGoals()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func deactivateGoal(_ goal: Goal) async {
         guard let id = goal.id else { return }
 
@@ -79,6 +117,7 @@ final class GoalViewModel {
         inputTargetValue = ""
         inputStartValue = ""
         inputDeadline = Calendar.current.date(byAdding: .month, value: 3, to: Date()) ?? Date()
+        editingGoal = nil
         errorMessage = nil
     }
 }

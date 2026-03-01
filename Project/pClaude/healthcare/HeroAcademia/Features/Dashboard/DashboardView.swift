@@ -5,6 +5,7 @@ struct DashboardView: View {
     @Bindable var goalViewModel: GoalViewModel
     var watchConnectivity: WatchConnectivityService?
     @State private var showingGoalSetting = false
+    @State private var showingGoalEdit = false
 
     var body: some View {
         NavigationStack {
@@ -34,6 +35,10 @@ struct DashboardView: View {
                                 }
                             }
                         )
+                        .onTapGesture {
+                            goalViewModel.startEditing(goal)
+                            showingGoalEdit = true
+                        }
                     } else {
                         Button {
                             showingGoalSetting = true
@@ -75,6 +80,12 @@ struct DashboardView: View {
                 sendWatchData()
             }
             .sheet(isPresented: $showingGoalSetting) {
+                GoalSettingView(viewModel: goalViewModel)
+                    .onDisappear {
+                        Task { await viewModel.loadAll() }
+                    }
+            }
+            .sheet(isPresented: $showingGoalEdit) {
                 GoalSettingView(viewModel: goalViewModel)
                     .onDisappear {
                         Task { await viewModel.loadAll() }

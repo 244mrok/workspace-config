@@ -4,6 +4,8 @@ struct GoalSettingView: View {
     @Bindable var viewModel: GoalViewModel
     @Environment(\.dismiss) private var dismiss
 
+    private var isEditMode: Bool { viewModel.editingGoal != nil }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -14,16 +16,22 @@ struct GoalSettingView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    .disabled(isEditMode)
                 }
 
                 Section("目標値") {
                     HStack {
                         Text("現在値")
                         Spacer()
-                        TextField("0.0", text: $viewModel.inputStartValue)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 100)
+                        if isEditMode {
+                            Text(viewModel.inputStartValue)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            TextField("0.0", text: $viewModel.inputStartValue)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 100)
+                        }
                         Text(viewModel.inputType.unit)
                             .foregroundStyle(.secondary)
                     }
@@ -57,7 +65,7 @@ struct GoalSettingView: View {
                     }
                 }
             }
-            .navigationTitle("目標を設定")
+            .navigationTitle(isEditMode ? "目標を編集" : "目標を設定")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -69,7 +77,11 @@ struct GoalSettingView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
                         Task {
-                            await viewModel.addGoal()
+                            if isEditMode {
+                                await viewModel.updateExistingGoal()
+                            } else {
+                                await viewModel.addGoal()
+                            }
                             if viewModel.errorMessage == nil {
                                 dismiss()
                             }
