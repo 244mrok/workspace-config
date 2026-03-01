@@ -5,6 +5,13 @@ struct MeasurementInputView: View {
     var onDismiss: () -> Void
     @State private var showSaveConfirmation = false
 
+    private enum Field: Hashable {
+        case weight
+        case bodyFat
+    }
+
+    @FocusState private var focusedField: Field?
+
     var body: some View {
         Form {
             Section("計測日時") {
@@ -20,10 +27,11 @@ struct MeasurementInputView: View {
                 HStack {
                     Text("体重")
                     Spacer()
-                    TextField("0.0", text: $viewModel.inputWeight)
+                    TextField("体重", text: $viewModel.inputWeight, prompt: Text("0.0"))
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 100)
+                        .focused($focusedField, equals: .weight)
                         .accessibilityIdentifier("weightField")
                     Text("kg")
                         .foregroundStyle(.secondary)
@@ -32,10 +40,11 @@ struct MeasurementInputView: View {
                 HStack {
                     Text("体脂肪率")
                     Spacer()
-                    TextField("0.0", text: $viewModel.inputBodyFat)
+                    TextField("体脂肪率", text: $viewModel.inputBodyFat, prompt: Text("0.0"))
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 100)
+                        .focused($focusedField, equals: .bodyFat)
                         .accessibilityIdentifier("bodyFatField")
                     Text("%")
                         .foregroundStyle(.secondary)

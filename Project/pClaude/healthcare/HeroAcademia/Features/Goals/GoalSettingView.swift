@@ -6,6 +6,13 @@ struct GoalSettingView: View {
 
     private var isEditMode: Bool { viewModel.editingGoal != nil }
 
+    private enum Field: Hashable {
+        case startValue
+        case targetValue
+    }
+
+    @FocusState private var focusedField: Field?
+
     var body: some View {
         NavigationStack {
             Form {
@@ -27,10 +34,11 @@ struct GoalSettingView: View {
                             Text(viewModel.inputStartValue)
                                 .foregroundStyle(.secondary)
                         } else {
-                            TextField("0.0", text: $viewModel.inputStartValue)
+                            TextField("現在値", text: $viewModel.inputStartValue, prompt: Text("0.0"))
                                 .keyboardType(.decimalPad)
                                 .multilineTextAlignment(.trailing)
                                 .frame(width: 100)
+                                .focused($focusedField, equals: .startValue)
                         }
                         Text(viewModel.inputType.unit)
                             .foregroundStyle(.secondary)
@@ -39,10 +47,11 @@ struct GoalSettingView: View {
                     HStack {
                         Text("目標値")
                         Spacer()
-                        TextField("0.0", text: $viewModel.inputTargetValue)
+                        TextField("目標値", text: $viewModel.inputTargetValue, prompt: Text("0.0"))
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 100)
+                            .focused($focusedField, equals: .targetValue)
                         Text(viewModel.inputType.unit)
                             .foregroundStyle(.secondary)
                     }
