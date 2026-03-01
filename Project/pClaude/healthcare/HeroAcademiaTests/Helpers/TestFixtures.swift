@@ -45,12 +45,16 @@ enum TestFixtures {
     static func userProfile(
         email: String = "test@test.com",
         displayName: String = "テストユーザー",
-        height: Double? = 170.0
+        height: Double? = 170.0,
+        birthday: Date? = Calendar.current.date(byAdding: .year, value: -30, to: Date()),
+        gender: Gender? = .male
     ) -> UserProfile {
         UserProfile(
             email: email,
             displayName: displayName,
-            height: height
+            height: height,
+            birthday: birthday,
+            gender: gender
         )
     }
 

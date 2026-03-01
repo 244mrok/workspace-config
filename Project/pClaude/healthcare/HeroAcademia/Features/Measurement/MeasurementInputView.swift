@@ -49,6 +49,15 @@ struct MeasurementInputView: View {
                     Text("%")
                         .foregroundStyle(.secondary)
                 }
+
+                if let bmi = viewModel.calculatedBMI {
+                    HStack {
+                        Text("BMI")
+                        Spacer()
+                        Text(String(format: "%.1f", bmi))
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
             if let error = viewModel.errorMessage {
@@ -59,6 +68,7 @@ struct MeasurementInputView: View {
                 }
             }
         }
+        .task { await viewModel.loadUserProfile() }
         .navigationTitle("計測を記録")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

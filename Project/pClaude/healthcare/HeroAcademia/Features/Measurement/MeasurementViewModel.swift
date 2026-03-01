@@ -12,6 +12,7 @@ final class MeasurementViewModel {
     var inputWeight: String = ""
     var inputBodyFat: String = ""
     var inputDate: Date = Date()
+    var userProfile: UserProfile?
 
     private let firebaseService: FirebaseServiceProtocol
     private let healthKitService: HealthKitServiceProtocol?
@@ -27,6 +28,13 @@ final class MeasurementViewModel {
 
     // MARK: - Computed
 
+    var calculatedBMI: Double? {
+        guard let weight = Double(inputWeight),
+              let height = userProfile?.height,
+              height > 0 else { return nil }
+        return GoalEngine.bmi(weightKg: weight, heightCm: height)
+    }
+
     var latestWeight: Double? {
         measurements.first(where: { $0.weight != nil })?.weight
     }
@@ -36,6 +44,10 @@ final class MeasurementViewModel {
     }
 
     // MARK: - Actions
+
+    func loadUserProfile() async {
+        userProfile = try? await firebaseService.fetchUserProfile()
+    }
 
     func loadMeasurements() async {
         isLoading = true

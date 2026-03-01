@@ -48,6 +48,21 @@ final class DashboardViewModel {
         return GoalEngine.bmi(weightKg: weight, heightCm: height)
     }
 
+    var estimatedTDEE: Double? {
+        guard let weight = latestWeight,
+              let profile = userProfile,
+              let height = profile.height,
+              let birthday = profile.birthday,
+              let gender = profile.gender else { return nil }
+        let age = Calendar.current.dateComponents([.year], from: birthday, to: Date()).year ?? 0
+        guard age > 0 else { return nil }
+        let bmr = GoalEngine.bmr(
+            weightKg: weight, heightCm: height, age: age,
+            gender: gender, bodyFatPercentage: latestBodyFat
+        )
+        return GoalEngine.tdee(bmr: bmr, activityLevel: .light)
+    }
+
     var goalProgress: Double? {
         guard let goal = activeGoal else { return nil }
         switch goal.type {

@@ -153,6 +153,49 @@ struct DashboardViewModelTests {
         #expect(vm.latestBodyFat == nil)
     }
 
+    // MARK: - TDEE
+
+    @Test("TDEE calculated when all profile fields present")
+    @MainActor
+    func tdeeCalculated() async {
+        let service = makeService()
+        service.measurements = [TestFixtures.measurement(weight: 70.0, bodyFatPercentage: 20.0)]
+        service.userProfile = TestFixtures.userProfile(height: 170, birthday: Calendar.current.date(byAdding: .year, value: -30, to: Date()), gender: .male)
+
+        let vm = DashboardViewModel(firebaseService: service)
+        await vm.loadAll()
+
+        #expect(vm.estimatedTDEE != nil)
+        // Katch-McArdle: LBM=56, BMR=370+21.6×56=1579.6, TDEE=1579.6×1.375≈2172
+        #expect(abs(vm.estimatedTDEE! - 2172.0) < 5.0)
+    }
+
+    @Test("TDEE nil when birthday missing")
+    @MainActor
+    func tdeeNilWithoutBirthday() async {
+        let service = makeService()
+        service.measurements = [TestFixtures.measurement(weight: 70.0)]
+        service.userProfile = TestFixtures.userProfile(height: 170, birthday: nil, gender: .male)
+
+        let vm = DashboardViewModel(firebaseService: service)
+        await vm.loadAll()
+
+        #expect(vm.estimatedTDEE == nil)
+    }
+
+    @Test("TDEE nil when gender missing")
+    @MainActor
+    func tdeeNilWithoutGender() async {
+        let service = makeService()
+        service.measurements = [TestFixtures.measurement(weight: 70.0)]
+        service.userProfile = TestFixtures.userProfile(height: 170, gender: nil)
+
+        let vm = DashboardViewModel(firebaseService: service)
+        await vm.loadAll()
+
+        #expect(vm.estimatedTDEE == nil)
+    }
+
     @Test("Error handling")
     @MainActor
     func errorHandling() async {

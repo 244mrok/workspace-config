@@ -22,6 +22,11 @@ struct DashboardView: View {
                     // Latest stats card
                     latestStatsCard
 
+                    // TDEE
+                    if let tdee = viewModel.estimatedTDEE {
+                        tdeeCard(tdee: tdee)
+                    }
+
                     // Goal progress
                     if let goal = viewModel.activeGoal {
                         GoalProgressCard(
@@ -150,6 +155,27 @@ struct DashboardView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func tdeeCard(tdee: Double) -> some View {
+        HStack {
+            Image(systemName: "flame")
+                .font(.title3)
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("推定消費カロリー")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("\(Int(tdee)) kcal/日")
+                    .font(.title3.bold())
+            }
+            Spacer()
+            Text("活動量: 軽め")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var streakBadge: some View {

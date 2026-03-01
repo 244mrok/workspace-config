@@ -133,6 +133,61 @@ struct GoalEngineTests {
         #expect(abs(pace - (-0.1)) < 0.01)
     }
 
+    // MARK: - BMR (Katch-McArdle)
+
+    @Test("BMR with body fat — Katch-McArdle formula")
+    func bmrKatchMcArdle() {
+        // 70kg, 20% body fat → LBM = 56kg → BMR = 370 + 21.6 × 56 = 1579.6
+        let result = GoalEngine.bmr(weightKg: 70, heightCm: 170, age: 30, gender: .male, bodyFatPercentage: 20.0)
+        #expect(abs(result - 1579.6) < 0.1)
+    }
+
+    // MARK: - BMR (Mifflin-St Jeor)
+
+    @Test("BMR male — Mifflin-St Jeor")
+    func bmrMifflinMale() {
+        // Male: 10×70 + 6.25×170 - 5×30 + 5 = 700 + 1062.5 - 150 + 5 = 1617.5
+        let result = GoalEngine.bmr(weightKg: 70, heightCm: 170, age: 30, gender: .male, bodyFatPercentage: nil)
+        #expect(abs(result - 1617.5) < 0.1)
+    }
+
+    @Test("BMR female — Mifflin-St Jeor")
+    func bmrMifflinFemale() {
+        // Female: 10×60 + 6.25×160 - 5×25 - 161 = 600 + 1000 - 125 - 161 = 1314
+        let result = GoalEngine.bmr(weightKg: 60, heightCm: 160, age: 25, gender: .female, bodyFatPercentage: nil)
+        #expect(abs(result - 1314.0) < 0.1)
+    }
+
+    @Test("BMR gender other — average of male/female")
+    func bmrGenderOther() {
+        let male = GoalEngine.bmr(weightKg: 70, heightCm: 170, age: 30, gender: .male, bodyFatPercentage: nil)
+        let female = GoalEngine.bmr(weightKg: 70, heightCm: 170, age: 30, gender: .female, bodyFatPercentage: nil)
+        let other = GoalEngine.bmr(weightKg: 70, heightCm: 170, age: 30, gender: .other, bodyFatPercentage: nil)
+        #expect(abs(other - (male + female) / 2.0) < 0.1)
+    }
+
+    @Test("BMR zero weight returns 0")
+    func bmrZeroWeight() {
+        #expect(GoalEngine.bmr(weightKg: 0, heightCm: 170, age: 30, gender: .male, bodyFatPercentage: nil) == 0)
+    }
+
+    @Test("BMR zero age returns 0")
+    func bmrZeroAge() {
+        #expect(GoalEngine.bmr(weightKg: 70, heightCm: 170, age: 0, gender: .male, bodyFatPercentage: nil) == 0)
+    }
+
+    // MARK: - TDEE
+
+    @Test("TDEE calculation at various activity levels")
+    func tdeeCalculation() {
+        let bmr = 1600.0
+        #expect(abs(GoalEngine.tdee(bmr: bmr, activityLevel: .sedentary) - 1920.0) < 0.1)
+        #expect(abs(GoalEngine.tdee(bmr: bmr, activityLevel: .light) - 2200.0) < 0.1)
+        #expect(abs(GoalEngine.tdee(bmr: bmr, activityLevel: .moderate) - 2480.0) < 0.1)
+        #expect(abs(GoalEngine.tdee(bmr: bmr, activityLevel: .active) - 2760.0) < 0.1)
+        #expect(abs(GoalEngine.tdee(bmr: bmr, activityLevel: .veryActive) - 3040.0) < 0.1)
+    }
+
     // MARK: - Milestone Detection
 
     @Test("Milestone — crossing 50% threshold")

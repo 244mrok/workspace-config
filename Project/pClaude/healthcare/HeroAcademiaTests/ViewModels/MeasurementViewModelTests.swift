@@ -98,6 +98,40 @@ struct MeasurementViewModelTests {
         #expect(viewModel.latestBodyFat == 20.0)
     }
 
+    // MARK: - Calculated BMI
+
+    @Test("calculatedBMI returns value when weight and profile loaded")
+    func calculatedBMI() {
+        let service = MockFirebaseService()
+        let viewModel = MeasurementViewModel(firebaseService: service)
+        viewModel.userProfile = TestFixtures.userProfile(height: 170)
+        viewModel.inputWeight = "70.0"
+
+        let bmi = viewModel.calculatedBMI
+        #expect(bmi != nil)
+        #expect(abs(bmi! - 24.22) < 0.1)
+    }
+
+    @Test("calculatedBMI nil when no weight input")
+    func calculatedBMINilNoWeight() {
+        let service = MockFirebaseService()
+        let viewModel = MeasurementViewModel(firebaseService: service)
+        viewModel.userProfile = TestFixtures.userProfile(height: 170)
+        viewModel.inputWeight = ""
+
+        #expect(viewModel.calculatedBMI == nil)
+    }
+
+    @Test("calculatedBMI nil when no height in profile")
+    func calculatedBMINilNoHeight() {
+        let service = MockFirebaseService()
+        let viewModel = MeasurementViewModel(firebaseService: service)
+        viewModel.userProfile = TestFixtures.userProfile(height: nil)
+        viewModel.inputWeight = "70.0"
+
+        #expect(viewModel.calculatedBMI == nil)
+    }
+
     @Test("Reset form clears all fields")
     func resetForm() {
         let service = MockFirebaseService()

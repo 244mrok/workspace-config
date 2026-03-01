@@ -1,5 +1,24 @@
 import Foundation
 
+/// Activity level multiplier for TDEE calculation.
+enum ActivityLevel: Double, CaseIterable, Codable {
+    case sedentary = 1.2       // デスクワーク中心
+    case light = 1.375         // 軽い運動（週1-3日）
+    case moderate = 1.55       // 中程度（週3-5日）
+    case active = 1.725        // 活発（週6-7日）
+    case veryActive = 1.9      // 非常に活発
+
+    var displayName: String {
+        switch self {
+        case .sedentary: return "座り仕事中心"
+        case .light: return "軽い運動（週1-3日）"
+        case .moderate: return "中程度（週3-5日）"
+        case .active: return "活発（週6-7日）"
+        case .veryActive: return "非常に活発"
+        }
+    }
+}
+
 /// Stateless utility for goal-related calculations.
 struct GoalEngine {
 
@@ -84,6 +103,40 @@ struct GoalEngine {
             }
         }
         return nil
+    }
+
+    /// BMR using Katch-McArdle (body fat known) or Mifflin-St Jeor (fallback).
+    static func bmr(
+        weightKg: Double,
+        heightCm: Double,
+        age: Int,
+        gender: Gender,
+        bodyFatPercentage: Double?
+    ) -> Double {
+        guard weightKg > 0, age > 0 else { return 0 }
+
+        // Katch-McArdle when body fat is available
+        if let bf = bodyFatPercentage, bf > 0, bf < 100 {
+            let lbm = weightKg * (1 - bf / 100.0)
+            return 370 + 21.6 * lbm
+        }
+
+        // Mifflin-St Jeor fallback
+        switch gender {
+        case .male:
+            return 10 * weightKg + 6.25 * heightCm - 5 * Double(age) + 5
+        case .female:
+            return 10 * weightKg + 6.25 * heightCm - 5 * Double(age) - 161
+        case .other:
+            let male = 10 * weightKg + 6.25 * heightCm - 5 * Double(age) + 5
+            let female = 10 * weightKg + 6.25 * heightCm - 5 * Double(age) - 161
+            return (male + female) / 2.0
+        }
+    }
+
+    /// TDEE = BMR × activity multiplier.
+    static func tdee(bmr: Double, activityLevel: ActivityLevel) -> Double {
+        bmr * activityLevel.rawValue
     }
 
     /// Required daily pace from current value to reach the goal by deadline.
