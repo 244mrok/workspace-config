@@ -26,6 +26,8 @@ protocol FirebaseServiceProtocol {
     // Goals
     func addGoal(_ goal: Goal) async throws
     func fetchActiveGoals() async throws -> [Goal]
+    func updateGoal(_ goal: Goal) async throws
+    func deactivateGoal(id: String) async throws
 }
 
 // MARK: - Implementation
@@ -191,6 +193,19 @@ final class FirebaseService: FirebaseServiceProtocol {
         return snapshot.documents.compactMap { doc in
             try? doc.data(as: Goal.self)
         }
+    }
+
+    func updateGoal(_ goal: Goal) async throws {
+        guard let id = goal.id else {
+            throw FirebaseServiceError.missingId
+        }
+        let collection = try goalsCollection()
+        try collection.document(id).setData(from: goal)
+    }
+
+    func deactivateGoal(id: String) async throws {
+        let collection = try goalsCollection()
+        try await collection.document(id).updateData(["isActive": false])
     }
 }
 

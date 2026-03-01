@@ -1,16 +1,19 @@
 import SwiftUI
+import HealthKit
 
 struct RootView: View {
     @State private var firebaseService = FirebaseService()
+    @State private var healthKitService: HealthKitService? = {
+        HKHealthStore.isHealthDataAvailable() ? HealthKitService() : nil
+    }()
 
     var body: some View {
         Group {
             if firebaseService.isAuthenticated {
-                NavigationStack {
-                    MeasurementListView(
-                        viewModel: MeasurementViewModel(firebaseService: firebaseService)
-                    )
-                }
+                MainTabView(
+                    firebaseService: firebaseService,
+                    healthKitService: healthKitService
+                )
             } else {
                 NavigationStack {
                     AuthView(

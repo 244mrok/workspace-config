@@ -1,0 +1,84 @@
+import Foundation
+
+@MainActor
+@Observable
+final class GoalViewModel {
+    var goals: [Goal] = []
+    var isLoading = false
+    var errorMessage: String?
+
+    // Input form fields
+    var inputType: GoalType = .weight
+    var inputTargetValue: String = ""
+    var inputStartValue: String = ""
+    var inputDeadline: Date = Calendar.current.date(byAdding: .month, value: 3, to: Date()) ?? Date()
+
+    private let firebaseService: FirebaseServiceProtocol
+
+    init(firebaseService: FirebaseServiceProtocol) {
+        self.firebaseService = firebaseService
+    }
+
+    // MARK: - Computed
+
+    var activeGoal: Goal? {
+        goals.first { $0.isActive }
+    }
+
+    // MARK: - Actions
+
+    func loadGoals() async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            goals = try await firebaseService.fetchActiveGoals()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoading = false
+    }
+
+    func addGoal() async {
+        guard let target = Double(inputTargetValue),
+              let start = Double(inputStartValue) else {
+            errorMessage = "目標値と現在値を正しく入力してください"
+            return
+        }
+
+        let goal = Goal(
+            type: inputType,
+            targetValue: target,
+            startValue: start,
+            deadline: inputDeadline
+        )
+
+        do {
+            try await firebaseService.addGoal(goal)
+            resetForm()
+            await loadGoals()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func deactivateGoal(_ goal: Goal) async {
+        guard let id = goal.id else { return }
+
+        do {
+            try await firebaseService.deactivateGoal(id: id)
+            await loadGoals()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func resetForm() {
+        inputType = .weight
+        inputTargetValue = ""
+        inputStartValue = ""
+        inputDeadline = Calendar.current.date(byAdding: .month, value: 3, to: Date()) ?? Date()
+        errorMessage = nil
+    }
+}

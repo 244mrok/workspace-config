@@ -57,10 +57,8 @@ struct Goal: Codable, Identifiable, Equatable {
         return totalChange / Double(days)
     }
 
-    var progressPercentage: Double {
-        guard totalChange != 0 else { return 0 }
-        // This would need current value passed in; placeholder
-        return 0
+    var daysRemaining: Int {
+        max(0, Calendar.current.dateComponents([.day], from: Date(), to: deadline).day ?? 0)
     }
 
     func progressPercentage(currentValue: Double) -> Double {

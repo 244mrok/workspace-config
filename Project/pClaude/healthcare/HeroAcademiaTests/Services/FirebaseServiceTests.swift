@@ -78,6 +78,20 @@ final class MockFirebaseService: FirebaseServiceProtocol {
         return goals.filter { $0.isActive }
     }
 
+    func updateGoal(_ goal: Goal) async throws {
+        if shouldThrowError { throw MockError.testError }
+        if let index = goals.firstIndex(where: { $0.id == goal.id }) {
+            goals[index] = goal
+        }
+    }
+
+    func deactivateGoal(id: String) async throws {
+        if shouldThrowError { throw MockError.testError }
+        if let index = goals.firstIndex(where: { $0.id == id }) {
+            goals[index].isActive = false
+        }
+    }
+
     enum MockError: Error {
         case testError
     }

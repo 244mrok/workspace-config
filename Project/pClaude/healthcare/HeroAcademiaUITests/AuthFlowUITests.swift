@@ -28,20 +28,32 @@ final class AuthFlowUITests: XCTestCase {
         FileManager.default.createFile(atPath: path, contents: screenshot.pngRepresentation)
     }
 
+    // MARK: - Helper: Navigate to Measurement Tab
+
+    private func navigateToMeasurementTab() {
+        let measurementTab = app.tabBars.buttons["計測記録"]
+        if measurementTab.waitForExistence(timeout: 5) {
+            measurementTab.tap()
+        }
+    }
+
     // MARK: - Full Flow Test
 
     func testFullSignUpAndMeasurementFlow() throws {
-        let measurementNavTitle = app.navigationBars["計測記録"]
+        // After login, we should land on a TabView with ダッシュボード tab
+        let dashboardTab = app.tabBars.buttons["ダッシュボード"]
         let emailField = app.textFields["emailField"]
 
-        if measurementNavTitle.waitForExistence(timeout: 3) {
-            saveScreenshot("01_already_logged_in")
+        if dashboardTab.waitForExistence(timeout: 3) {
+            saveScreenshot("01_already_logged_in_dashboard")
+            navigateToMeasurementTab()
             try testMeasurementAddFlow()
             try testMeasurementDeleteFlow()
         } else {
             XCTAssertTrue(emailField.waitForExistence(timeout: 10), "Email field should exist")
             saveScreenshot("01_login_screen")
             try testSignUpFlow()
+            navigateToMeasurementTab()
             try testMeasurementAddFlow()
         }
     }
@@ -66,10 +78,11 @@ final class AuthFlowUITests: XCTestCase {
         let submitButton = app.buttons["submitButton"]
         submitButton.tap()
 
-        let measurementNavTitle = app.navigationBars["計測記録"]
+        // After signup, should see TabView with ダッシュボード tab
+        let dashboardTab = app.tabBars.buttons["ダッシュボード"]
         XCTAssertTrue(
-            measurementNavTitle.waitForExistence(timeout: 15),
-            "Should navigate to measurement list after signup"
+            dashboardTab.waitForExistence(timeout: 15),
+            "Should navigate to dashboard tab after signup"
         )
         saveScreenshot("04_after_signup")
     }
@@ -156,6 +169,12 @@ final class AuthFlowUITests: XCTestCase {
     // MARK: - Validation Test
 
     func testMeasurementValidation() throws {
+        // Navigate to measurement tab first
+        let dashboardTab = app.tabBars.buttons["ダッシュボード"]
+        guard dashboardTab.waitForExistence(timeout: 5) else { return }
+
+        navigateToMeasurementTab()
+
         let measurementNavTitle = app.navigationBars["計測記録"]
         guard measurementNavTitle.waitForExistence(timeout: 5) else { return }
 

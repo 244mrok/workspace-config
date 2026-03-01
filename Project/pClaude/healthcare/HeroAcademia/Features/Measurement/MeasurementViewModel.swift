@@ -14,10 +14,15 @@ final class MeasurementViewModel {
     var inputDate: Date = Date()
 
     private let firebaseService: FirebaseServiceProtocol
+    private let healthKitService: HealthKitServiceProtocol?
     private var listener: ListenerRegistration?
 
-    init(firebaseService: FirebaseServiceProtocol) {
+    init(
+        firebaseService: FirebaseServiceProtocol,
+        healthKitService: HealthKitServiceProtocol? = nil
+    ) {
         self.firebaseService = firebaseService
+        self.healthKitService = healthKitService
     }
 
     // MARK: - Computed
@@ -66,9 +71,14 @@ final class MeasurementViewModel {
             return
         }
 
+        // Calculate BMI if weight is available
         var bmi: Double?
-        // BMI calculation would need height from user profile
-        // For now, leave as nil
+        if let weight {
+            let profile = try? await firebaseService.fetchUserProfile()
+            if let height = profile?.height, height > 0 {
+                bmi = GoalEngine.bmi(weightKg: weight, heightCm: height)
+            }
+        }
 
         let measurement = BodyMeasurement(
             date: inputDate,
@@ -80,6 +90,17 @@ final class MeasurementViewModel {
 
         do {
             try await firebaseService.addMeasurement(measurement)
+
+            // Write-through to HealthKit
+            if let hk = healthKitService, hk.isAuthorized {
+                if let weight {
+                    try? await hk.saveWeight(weight, date: inputDate)
+                }
+                if let bodyFat {
+                    try? await hk.saveBodyFat(bodyFat, date: inputDate)
+                }
+            }
+
             resetForm()
         } catch {
             errorMessage = error.localizedDescription
@@ -91,8 +112,6 @@ final class MeasurementViewModel {
             guard let id = measurements[index].id else { continue }
             do {
                 try await firebaseService.deleteMeasurement(id: id)
-                // Don't remove locally — the Firestore snapshot listener
-                // will update measurements automatically.
             } catch {
                 errorMessage = error.localizedDescription
             }

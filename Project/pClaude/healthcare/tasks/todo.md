@@ -1,67 +1,127 @@
 # Phase 1: HeroAcademia Foundation
 
-## Status: Complete (pending Xcode build verification)
+## Status: Complete
 
 ### Completed Steps
 
 - [x] Step 1: Directory Structure & project.yml
-  - Created all directories (HeroAcademia/, HeroAcademiaWatch/, HeroAcademiaTests/)
-  - Created `project.yml` (iOS 17+, watchOS 10+, SPM: firebase-ios-sdk 11.6.0)
-  - Created `.swiftlint.yml`
-
 - [x] Step 2: Data Models (4 files)
-  - `MeasurementSource.swift` — enum with 6 sources + 日本語 displayName
-  - `BodyMeasurement.swift` — full body composition model with @DocumentID
-  - `UserProfile.swift` — user profile with Gender enum
-  - `Goal.swift` — goal with progress calculation logic
-
 - [x] Step 3: Extensions
-  - `Date+Extensions.swift` — 日本語フォーマット (shortDate, medium, relative)
-  - `Double+Formatting.swift` — weight/bodyFat/BMI formatting
-
 - [x] Step 4: FirebaseService
-  - `FirebaseServiceProtocol` — full protocol for testing
-  - `FirebaseService` — @Observable class with Auth + Firestore CRUD
-  - Real-time listener support (listenToMeasurements)
-
 - [x] Step 5: ViewModels
-  - `AuthViewModel` — email/password auth with form validation
-  - `MeasurementViewModel` — CRUD + real-time listener + form management
-
 - [x] Step 6: Views (MVP screens)
-  - `HeroAcademiaApp.swift` + `AppDelegate.swift` (Firebase init)
-  - `RootView.swift` — auth state routing
-  - `AuthView.swift` — login/signup form (日本語 UI)
-  - `MeasurementListView.swift` — measurement list + swipe delete
-  - `MeasurementInputView.swift` — measurement input form
-
 - [x] Step 7: watchOS Skeleton
-  - `HeroAcademiaWatchApp.swift` + `ContentView.swift` (placeholder)
-
 - [x] Step 8: Resources
-  - `Assets.xcassets/Contents.json`
-  - `Localizable.strings` (Japanese)
-
 - [x] Step 9: Tests (4 files)
-  - `BodyMeasurementTests.swift` — creation, JSON roundtrip, source display names
-  - `GoalTests.swift` — display names, total change, daily pace, progress %
-  - `FirebaseServiceTests.swift` — MockFirebaseService + CRUD tests
-  - `MeasurementViewModelTests.swift` — ViewModel state, load, add, delete, error handling
-
 - [x] Step 10: Generate Xcode project
-  - `xcodegen generate` ✅ 成功
-  - `xcodebuild build` ⚠️ Xcode.app 未インストールのため実行不可
 
-## Remaining User Actions
+---
 
-1. **Install Xcode.app** from Mac App Store
-2. After Xcode installed: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`
-3. Open `HeroAcademia.xcodeproj` or run: `xcodebuild -scheme HeroAcademia -destination 'platform=iOS Simulator,name=iPhone 16' build`
-4. **Firebase setup**:
-   - Create project at https://console.firebase.google.com
-   - Add iOS app (Bundle ID: `com.heroacademia.app`)
-   - Download `GoogleService-Info.plist` → `HeroAcademia/Resources/`
-   - Enable Email/Password auth
-   - Create Firestore database
+# Phase 2: Core Features
 
-## File Count: 25 files created
+## Status: Complete
+
+### Completed Steps
+
+- [x] Step 1: GoalEngine (pure utility)
+  - `GoalEngine.swift` — bmi(), streak(), projectedCompletionDate(), requiredDailyPace()
+  - `GoalEngineTests.swift` — 11 tests covering all 4 methods
+
+- [x] Step 2: Goal.swift + FirebaseService updates
+  - Removed misleading `progressPercentage` computed var, added `daysRemaining`
+  - Added `updateGoal()` and `deactivateGoal()` to protocol + implementation + mock
+
+- [x] Step 3: HealthKitService
+  - `HealthKitServiceProtocol` — 8 methods (auth, fetch, save)
+  - `HealthKitService` — concrete class, gracefully no-ops on simulator
+  - `MockHealthKitService.swift` — for testing
+
+- [x] Step 4: project.yml update
+  - HealthKit entitlement + Info.plist usage descriptions
+  - `HeroAcademia.entitlements` with HealthKit capability
+  - HealthKit.framework SDK dependency
+
+- [x] Step 5: TestFixtures
+  - Factory methods: measurement(), goal(), userProfile()
+  - measurementHistory() for chart/trend test data
+
+- [x] Step 6: GoalViewModel + Goal views
+  - `GoalViewModel.swift` — @Observable @MainActor, goal CRUD
+  - `GoalSettingView.swift` — form (type picker, target, deadline)
+  - `GoalDetailView.swift` — progress bar, pace, projected date
+  - `GoalViewModelTests.swift` — 5 tests
+
+- [x] Step 7: SettingsView
+  - Account section, HealthKit status, app version, sign out
+
+- [x] Step 8: DashboardViewModel
+  - Loads measurements (limit: 30), active goal, user profile
+  - Computed: calculatedBMI, goalProgress, streak, projectedDate
+  - `DashboardViewModelTests.swift` — 7 tests
+
+- [x] Step 9: Dashboard components
+  - `WeightTrendMiniChart.swift` — Swift Charts line chart
+  - `GoalProgressCard.swift` — goal progress bar card
+
+- [x] Step 10: DashboardView + MainTabView + RootView update
+  - `DashboardView.swift` — latest stats, goal card, trend chart, streak
+  - `MainTabView.swift` — 3 tabs: ダッシュボード / 計測記録 / 設定
+  - `RootView.swift` — swapped to MainTabView, added HealthKitService
+
+- [x] Step 11: MeasurementViewModel enhancement
+  - Optional HealthKitServiceProtocol dependency
+  - BMI calculation using GoalEngine.bmi + user profile height
+  - HealthKit write-through on save
+  - UI tests updated for TabView navigation
+
+- [x] Step 12: Build, test, verify
+  - `xcodegen generate` ✅
+  - `xcodebuild build` ✅ BUILD SUCCEEDED
+  - 47 unit tests across 7 suites ✅ ALL PASSED
+  - UI tests updated for TabView (need Firebase to run)
+
+### Test Results (47 tests, 7 suites)
+
+| Suite | Tests | Status |
+|-------|-------|--------|
+| BodyMeasurement Tests | 4 | ✅ |
+| DashboardViewModel Tests | 7 | ✅ |
+| FirebaseService Mock Tests | 6 | ✅ |
+| GoalEngine Tests | 11 | ✅ |
+| Goal Tests | 7 | ✅ |
+| GoalViewModel Tests | 5 | ✅ |
+| MeasurementViewModel Tests | 7 | ✅ |
+
+### New Files (17 production + 5 test = 22)
+
+```
+HeroAcademia/Core/Services/GoalEngine.swift
+HeroAcademia/Core/Services/HealthKitService.swift
+HeroAcademia/HeroAcademia.entitlements
+HeroAcademia/Features/Dashboard/DashboardView.swift
+HeroAcademia/Features/Dashboard/DashboardViewModel.swift
+HeroAcademia/Features/Dashboard/Components/GoalProgressCard.swift
+HeroAcademia/Features/Dashboard/Components/WeightTrendMiniChart.swift
+HeroAcademia/Features/Goals/GoalSettingView.swift
+HeroAcademia/Features/Goals/GoalDetailView.swift
+HeroAcademia/Features/Goals/GoalViewModel.swift
+HeroAcademia/Features/Settings/SettingsView.swift
+HeroAcademia/Features/MainTabView.swift
+HeroAcademiaTests/Services/GoalEngineTests.swift
+HeroAcademiaTests/Services/MockHealthKitService.swift
+HeroAcademiaTests/ViewModels/DashboardViewModelTests.swift
+HeroAcademiaTests/ViewModels/GoalViewModelTests.swift
+HeroAcademiaTests/Helpers/TestFixtures.swift
+```
+
+### Modified Files (6)
+
+```
+HeroAcademia/Core/Models/Goal.swift — removed broken progressPercentage, added daysRemaining
+HeroAcademia/Core/Services/FirebaseService.swift — added updateGoal/deactivateGoal
+HeroAcademia/RootView.swift — MainTabView + HealthKitService
+HeroAcademia/Features/Measurement/MeasurementViewModel.swift — HealthKit + BMI
+HeroAcademiaTests/Services/FirebaseServiceTests.swift — MockFirebaseService updated
+HeroAcademiaUITests/AuthFlowUITests.swift — TabView navigation
+project.yml — HealthKit entitlement + framework
+```
