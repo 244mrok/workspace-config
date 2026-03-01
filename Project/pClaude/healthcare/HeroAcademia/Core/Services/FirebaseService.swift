@@ -67,13 +67,16 @@ final class FirebaseService: FirebaseServiceProtocol {
 
     private func setupAuthStateListener() {
         authStateListener = Auth.auth().addStateDidChangeListener { [weak self] _, user in
-            self?.currentUserId = user?.uid
+            DispatchQueue.main.async {
+                self?.currentUserId = user?.uid
+            }
         }
     }
 
     // MARK: - Auth
 
     func signUp(email: String, password: String) async throws {
+        guard isFirebaseConfigured else { throw FirebaseServiceError.notConfigured }
         let result = try await Auth.auth().createUser(withEmail: email, password: password)
         currentUserId = result.user.uid
 
@@ -82,11 +85,13 @@ final class FirebaseService: FirebaseServiceProtocol {
     }
 
     func signIn(email: String, password: String) async throws {
+        guard isFirebaseConfigured else { throw FirebaseServiceError.notConfigured }
         let result = try await Auth.auth().signIn(withEmail: email, password: password)
         currentUserId = result.user.uid
     }
 
     func signOut() throws {
+        guard isFirebaseConfigured else { throw FirebaseServiceError.notConfigured }
         try Auth.auth().signOut()
         currentUserId = nil
     }
@@ -151,7 +156,9 @@ final class FirebaseService: FirebaseServiceProtocol {
                 let measurements = snapshot.documents.compactMap { doc in
                     try? doc.data(as: BodyMeasurement.self)
                 }
-                onChange(measurements)
+                DispatchQueue.main.async {
+                    onChange(measurements)
+                }
             }
     }
 
@@ -191,12 +198,15 @@ final class FirebaseService: FirebaseServiceProtocol {
 
 enum FirebaseServiceError: LocalizedError {
     case notAuthenticated
+    case notConfigured
     case missingId
 
     var errorDescription: String? {
         switch self {
         case .notAuthenticated:
             return "ログインが必要です"
+        case .notConfigured:
+            return "Firebaseが初期化されていません"
         case .missingId:
             return "ドキュメントIDが見つかりません"
         }

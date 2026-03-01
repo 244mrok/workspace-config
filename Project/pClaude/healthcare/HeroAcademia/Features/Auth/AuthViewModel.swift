@@ -1,6 +1,7 @@
 import Foundation
 import FirebaseFirestore
 
+@MainActor
 @Observable
 final class AuthViewModel {
     var email = ""

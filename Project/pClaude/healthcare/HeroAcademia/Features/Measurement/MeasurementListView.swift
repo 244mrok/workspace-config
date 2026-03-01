@@ -74,7 +74,7 @@ private struct MeasurementRow: View {
                     Label(weight.weightWithUnit, systemImage: "scalemass")
                 }
                 if let bodyFat = measurement.bodyFatPercentage {
-                    Label(bodyFat.bodyFatWithUnit, systemImage: "percent")
+                    Label(bodyFat.bodyFatWithUnit, systemImage: "drop.halffull")
                 }
                 if let bmi = measurement.bmi {
                     Label(bmi.bmiWithUnit, systemImage: "heart.text.square")

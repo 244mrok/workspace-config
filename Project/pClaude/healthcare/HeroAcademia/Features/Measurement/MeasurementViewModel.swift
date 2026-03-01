@@ -1,6 +1,7 @@
 import Foundation
 import FirebaseFirestore
 
+@MainActor
 @Observable
 final class MeasurementViewModel {
     var measurements: [BodyMeasurement] = []
@@ -90,7 +91,8 @@ final class MeasurementViewModel {
             guard let id = measurements[index].id else { continue }
             do {
                 try await firebaseService.deleteMeasurement(id: id)
-                measurements.remove(at: index)
+                // Don't remove locally — the Firestore snapshot listener
+                // will update measurements automatically.
             } catch {
                 errorMessage = error.localizedDescription
             }

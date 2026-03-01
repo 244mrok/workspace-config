@@ -28,8 +28,12 @@ targets:
       - path: HeroAcademia
         excludes:
           - "Resources/**"
-    resources:
-      - HeroAcademia/Resources
+      - path: HeroAcademia/Resources/Assets.xcassets
+        buildPhase: resources
+      - path: HeroAcademia/Resources/GoogleService-Info.plist
+        buildPhase: resources
+      - path: HeroAcademia/Resources/Localizable.strings
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.heroacademia.app
@@ -69,3 +73,28 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: HeroAcademia
+
+  HeroAcademiaUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - HeroAcademiaUITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.heroacademia.uitests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: HeroAcademia
+
+schemes:
+  HeroAcademia:
+    build:
+      targets:
+        HeroAcademia: all
+        HeroAcademiaTests: [test]
+        HeroAcademiaUITests: [test]
+    test:
+      targets:
+        - HeroAcademiaTests
+        - HeroAcademiaUITests

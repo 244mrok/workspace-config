@@ -26,10 +26,12 @@ struct AuthView: View {
                     .textContentType(.emailAddress)
                     .autocapitalization(.none)
                     .keyboardType(.emailAddress)
+                    .accessibilityIdentifier("emailField")
 
                 SecureField("パスワード（6文字以上）", text: $viewModel.password)
                     .textFieldStyle(.roundedBorder)
                     .textContentType(viewModel.isLoginMode ? .password : .newPassword)
+                    .accessibilityIdentifier("passwordField")
 
                 if let error = viewModel.errorMessage {
                     Text(error)
@@ -51,11 +53,13 @@ struct AuthView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!viewModel.isFormValid || viewModel.isLoading)
+                .accessibilityIdentifier("submitButton")
 
                 Button(viewModel.toggleTitle) {
                     viewModel.toggleMode()
                 }
                 .font(.footnote)
+                .accessibilityIdentifier("toggleModeButton")
             }
             .padding(.horizontal, 32)
 

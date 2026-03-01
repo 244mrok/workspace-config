@@ -3,6 +3,7 @@ import Foundation
 @testable import HeroAcademia
 
 @Suite("MeasurementViewModel Tests")
+@MainActor
 struct MeasurementViewModelTests {
 
     @Test("Initial state")

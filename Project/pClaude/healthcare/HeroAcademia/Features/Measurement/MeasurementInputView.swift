@@ -23,6 +23,7 @@ struct MeasurementInputView: View {
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 100)
+                        .accessibilityIdentifier("weightField")
                     Text("kg")
                         .foregroundStyle(.secondary)
                 }
@@ -34,6 +35,7 @@ struct MeasurementInputView: View {
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 100)
+                        .accessibilityIdentifier("bodyFatField")
                     Text("%")
                         .foregroundStyle(.secondary)
                 }

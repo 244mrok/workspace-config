@@ -41,8 +41,8 @@ extension Date {
     }
 
     var relativeString: String {
-        if isToday { return "今日" }
-        if isYesterday { return "昨日" }
+        if isToday { return "今日 \(timeString)" }
+        if isYesterday { return "昨日 \(timeString)" }
         return shortDateString
     }
 
