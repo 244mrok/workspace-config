@@ -72,6 +72,32 @@ struct MeasurementViewModelTests {
         #expect(viewModel.latestWeight == 70.5)
     }
 
+    @Test("latestWeight finds first non-nil weight independently")
+    func latestWeightIndependent() {
+        let service = MockFirebaseService()
+        let viewModel = MeasurementViewModel(firebaseService: service)
+        viewModel.measurements = [
+            TestFixtures.measurement(id: "m1", weight: nil, bodyFatPercentage: 19.0),
+            TestFixtures.measurement(id: "m2", weight: 70.5, bodyFatPercentage: 20.0)
+        ]
+
+        #expect(viewModel.latestWeight == 70.5)
+        #expect(viewModel.latestBodyFat == 19.0)
+    }
+
+    @Test("latestBodyFat finds first non-nil bodyFat independently")
+    func latestBodyFatIndependent() {
+        let service = MockFirebaseService()
+        let viewModel = MeasurementViewModel(firebaseService: service)
+        viewModel.measurements = [
+            TestFixtures.measurement(id: "m1", weight: 71.0, bodyFatPercentage: nil),
+            TestFixtures.measurement(id: "m2", weight: 70.0, bodyFatPercentage: 20.0)
+        ]
+
+        #expect(viewModel.latestWeight == 71.0)
+        #expect(viewModel.latestBodyFat == 20.0)
+    }
+
     @Test("Reset form clears all fields")
     func resetForm() {
         let service = MockFirebaseService()

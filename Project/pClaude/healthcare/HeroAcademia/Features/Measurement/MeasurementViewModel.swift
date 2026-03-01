@@ -28,11 +28,11 @@ final class MeasurementViewModel {
     // MARK: - Computed
 
     var latestWeight: Double? {
-        measurements.first?.weight
+        measurements.first(where: { $0.weight != nil })?.weight
     }
 
     var latestBodyFat: Double? {
-        measurements.first?.bodyFatPercentage
+        measurements.first(where: { $0.bodyFatPercentage != nil })?.bodyFatPercentage
     }
 
     // MARK: - Actions

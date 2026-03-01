@@ -106,6 +106,53 @@ struct DashboardViewModelTests {
         #expect(vm.streak == 0)
     }
 
+    @Test("Weight-only record preserves previous body fat")
+    @MainActor
+    func weightOnlyPreservesBodyFat() async {
+        let service = makeService()
+        service.measurements = [
+            TestFixtures.measurement(id: "m1", weight: 71.0, bodyFatPercentage: nil),
+            TestFixtures.measurement(id: "m2", weight: 70.0, bodyFatPercentage: 20.0)
+        ]
+
+        let vm = DashboardViewModel(firebaseService: service)
+        await vm.loadAll()
+
+        #expect(vm.latestWeight == 71.0)
+        #expect(vm.latestBodyFat == 20.0)
+    }
+
+    @Test("Body-fat-only record preserves previous weight")
+    @MainActor
+    func bodyFatOnlyPreservesWeight() async {
+        let service = makeService()
+        service.measurements = [
+            TestFixtures.measurement(id: "m1", weight: nil, bodyFatPercentage: 19.0),
+            TestFixtures.measurement(id: "m2", weight: 70.0, bodyFatPercentage: 20.0)
+        ]
+
+        let vm = DashboardViewModel(firebaseService: service)
+        await vm.loadAll()
+
+        #expect(vm.latestWeight == 70.0)
+        #expect(vm.latestBodyFat == 19.0)
+    }
+
+    @Test("All-nil measurements return nil for both")
+    @MainActor
+    func allNilMeasurements() async {
+        let service = makeService()
+        service.measurements = [
+            TestFixtures.measurement(id: "m1", weight: nil, bodyFatPercentage: nil)
+        ]
+
+        let vm = DashboardViewModel(firebaseService: service)
+        await vm.loadAll()
+
+        #expect(vm.latestWeight == nil)
+        #expect(vm.latestBodyFat == nil)
+    }
+
     @Test("Error handling")
     @MainActor
     func errorHandling() async {

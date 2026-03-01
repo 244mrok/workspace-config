@@ -22,11 +22,11 @@ final class DashboardViewModel {
     }
 
     var latestWeight: Double? {
-        latestMeasurement?.weight
+        measurements.first(where: { $0.weight != nil })?.weight
     }
 
     var latestBodyFat: Double? {
-        latestMeasurement?.bodyFatPercentage
+        measurements.first(where: { $0.bodyFatPercentage != nil })?.bodyFatPercentage
     }
 
     var calculatedBMI: Double? {
