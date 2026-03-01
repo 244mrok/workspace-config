@@ -125,3 +125,104 @@ HeroAcademiaTests/Services/FirebaseServiceTests.swift — MockFirebaseService up
 HeroAcademiaUITests/AuthFlowUITests.swift — TabView navigation
 project.yml — HealthKit entitlement + framework
 ```
+
+---
+
+# Phase 3: Analytics & Devices
+
+## Status: Complete
+
+### Completed Steps
+
+- [x] Step 1: Extend HealthKitService for correlation data
+  - Added `fetchBodyFatHistory(days:)`, `fetchStepCounts(days:)`, `fetchSleepAnalysis(days:)` to protocol + implementation
+  - Updated `requestAuthorization()` readTypes: added `.stepCount`, `.sleepAnalysis`
+  - Updated MockHealthKitService with mock properties + method implementations
+
+- [x] Step 2: HealthDevice model + device service protocols
+  - `HealthDevice.swift` — DeviceType enum (omron/fitbit/garmin/withings) + HealthDevice struct
+  - `DeviceSyncService.swift` — protocol + StubDeviceSyncService (all throw notAvailable)
+  - `OmronService.swift` — protocol + StubOmronService (throws sdkNotAvailable)
+  - Added device CRUD to FirebaseServiceProtocol + FirebaseService + MockFirebaseService
+
+- [x] Step 3: TestFixtures extension
+  - Added `device()` factory for HealthDevice
+  - Added `measurementWithComposition()` factory with muscleMass/visceralFat/metabolicAge
+
+- [x] Step 4: AnalyticsViewModel
+  - @Observable @MainActor with measurements, stepData, sleepData, selectedPeriod
+  - Computed: weightTrendData, bodyFatTrendData, sleepWeightCorrelation, stepsBodyFatCorrelation, compositionBreakdown, heatmapData
+  - Supporting types: AnalyticsPeriod, CorrelationPoint, CompositionData, HeatmapEntry
+
+- [x] Step 5: Analytics chart views (5 charts)
+  - `WeightTrendChart.swift` — full-size with optional goalWeight RuleMark
+  - `BodyFatTrendChart.swift` — orange scheme with optional goalBodyFat RuleMark
+  - `CorrelationChart.swift` — scatter plot with two modes (sleepWeight / stepsBodyFat)
+  - `CompositionBreakdown.swift` — SectorMark donut chart with legend
+  - `HeatmapView.swift` — LazyVGrid 7-column calendar with intensity coloring
+
+- [x] Step 6: AnalyticsView + MainTabView integration
+  - `AnalyticsView.swift` — period selector, ScrollView with all 5 charts
+  - MainTabView updated: 4 tabs (ダッシュボード / 計測記録 / 分析 / 設定)
+
+- [x] Step 7: Device management UI
+  - `DeviceViewModel.swift` — @Observable @MainActor with load/connect/disconnect/sync
+  - `DeviceListView.swift` — connected devices + available types with "近日対応" badges
+  - `DevicePairingView.swift` — "Coming soon" modal
+  - SettingsView updated with "デバイス連携" NavigationLink
+
+- [x] Step 8: Build, test, verify
+  - `xcodegen generate` ✅
+  - `xcodebuild build` ✅ BUILD SUCCEEDED
+  - 86 unit tests across 11 suites ✅ ALL PASSED
+  - 2 UI tests ✅ PASSED
+
+### Test Results (86 unit tests, 11 suites)
+
+| Suite | Tests | Status |
+|-------|-------|--------|
+| AnalyticsViewModel Tests | 15 | ✅ |
+| BodyMeasurement Tests | 4 | ✅ |
+| DashboardViewModel Tests | 7 | ✅ |
+| DeviceSyncService Tests | 10 | ✅ |
+| DeviceViewModel Tests | 8 | ✅ |
+| FirebaseService Mock Tests | 6 | ✅ |
+| GoalEngine Tests | 11 | ✅ |
+| Goal Tests | 7 | ✅ |
+| GoalViewModel Tests | 5 | ✅ |
+| HealthDevice Model Tests | 7 | ✅ |
+| MeasurementViewModel Tests | 7 | ✅ |
+
+### New Files (17 production + 4 test = 21)
+
+```
+HeroAcademia/Core/Models/HealthDevice.swift
+HeroAcademia/Core/Services/DeviceSyncService.swift
+HeroAcademia/Core/Services/OmronService.swift
+HeroAcademia/Features/Analytics/AnalyticsView.swift
+HeroAcademia/Features/Analytics/AnalyticsViewModel.swift
+HeroAcademia/Features/Analytics/Charts/WeightTrendChart.swift
+HeroAcademia/Features/Analytics/Charts/BodyFatTrendChart.swift
+HeroAcademia/Features/Analytics/Charts/CorrelationChart.swift
+HeroAcademia/Features/Analytics/Charts/CompositionBreakdown.swift
+HeroAcademia/Features/Analytics/Charts/HeatmapView.swift
+HeroAcademia/Features/Devices/DeviceViewModel.swift
+HeroAcademia/Features/Devices/DeviceListView.swift
+HeroAcademia/Features/Devices/DevicePairingView.swift
+HeroAcademiaTests/Models/HealthDeviceTests.swift
+HeroAcademiaTests/Services/DeviceSyncServiceTests.swift
+HeroAcademiaTests/ViewModels/AnalyticsViewModelTests.swift
+HeroAcademiaTests/ViewModels/DeviceViewModelTests.swift
+```
+
+### Modified Files (7)
+
+```
+HeroAcademia/Core/Services/HealthKitService.swift — added fetchBodyFatHistory/fetchStepCounts/fetchSleepAnalysis + readTypes
+HeroAcademia/Core/Services/FirebaseService.swift — added device CRUD (protocol + implementation)
+HeroAcademia/Features/MainTabView.swift — added 分析 tab (4 tabs total)
+HeroAcademia/Features/Settings/SettingsView.swift — added デバイス連携 section
+HeroAcademiaTests/Services/MockHealthKitService.swift — added mock properties + methods for new protocol methods
+HeroAcademiaTests/Services/FirebaseServiceTests.swift — MockFirebaseService updated with device methods
+HeroAcademiaTests/Helpers/TestFixtures.swift — added device() + measurementWithComposition() factories
+```

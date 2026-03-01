@@ -26,6 +26,18 @@ struct MainTabView: View {
                 Label("計測記録", systemImage: "list.clipboard")
             }
 
+            NavigationStack {
+                AnalyticsView(
+                    viewModel: AnalyticsViewModel(
+                        firebaseService: firebaseService,
+                        healthKitService: healthKitService
+                    )
+                )
+            }
+            .tabItem {
+                Label("分析", systemImage: "chart.xyaxis.line")
+            }
+
             SettingsView(
                 firebaseService: firebaseService,
                 healthKitService: healthKitService

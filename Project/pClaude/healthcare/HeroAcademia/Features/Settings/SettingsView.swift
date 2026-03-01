@@ -40,6 +40,18 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("デバイス連携") {
+                    NavigationLink {
+                        DeviceListView(
+                            viewModel: DeviceViewModel(
+                                firebaseService: firebaseService
+                            )
+                        )
+                    } label: {
+                        Label("デバイス管理", systemImage: "sensor")
+                    }
+                }
+
                 Section("アプリ情報") {
                     LabeledContent("バージョン", value: appVersion)
                     LabeledContent("アプリ名", value: "HeroAcademia")

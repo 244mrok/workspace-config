@@ -54,6 +54,43 @@ enum TestFixtures {
         )
     }
 
+    static func device(
+        id: String? = "test-device-id",
+        type: DeviceType = .omron,
+        name: String = "テストデバイス",
+        lastSyncDate: Date? = nil,
+        isConnected: Bool = false
+    ) -> HealthDevice {
+        HealthDevice(
+            id: id,
+            type: type,
+            name: name,
+            lastSyncDate: lastSyncDate,
+            isConnected: isConnected
+        )
+    }
+
+    static func measurementWithComposition(
+        id: String? = "test-composition-id",
+        date: Date = Date(),
+        weight: Double? = 70.0,
+        bodyFatPercentage: Double? = 20.0,
+        muscleMass: Double? = 30.0,
+        visceralFatLevel: Int? = 8,
+        metabolicAge: Int? = 28
+    ) -> BodyMeasurement {
+        BodyMeasurement(
+            id: id,
+            date: date,
+            weight: weight,
+            bodyFatPercentage: bodyFatPercentage,
+            muscleMass: muscleMass,
+            visceralFatLevel: visceralFatLevel,
+            metabolicAge: metabolicAge,
+            source: .manual
+        )
+    }
+
     /// Generate a measurement history with a linear weight trend.
     static func measurementHistory(
         days: Int,

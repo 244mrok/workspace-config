@@ -11,6 +11,7 @@ final class MockFirebaseService: FirebaseServiceProtocol {
     var measurements: [BodyMeasurement] = []
     var userProfile: UserProfile?
     var goals: [Goal] = []
+    var devices: [HealthDevice] = []
 
     var signUpCalled = false
     var signInCalled = false
@@ -90,6 +91,28 @@ final class MockFirebaseService: FirebaseServiceProtocol {
         if let index = goals.firstIndex(where: { $0.id == id }) {
             goals[index].isActive = false
         }
+    }
+
+    func addDevice(_ device: HealthDevice) async throws {
+        if shouldThrowError { throw MockError.testError }
+        devices.append(device)
+    }
+
+    func fetchDevices() async throws -> [HealthDevice] {
+        if shouldThrowError { throw MockError.testError }
+        return devices
+    }
+
+    func updateDevice(_ device: HealthDevice) async throws {
+        if shouldThrowError { throw MockError.testError }
+        if let index = devices.firstIndex(where: { $0.id == device.id }) {
+            devices[index] = device
+        }
+    }
+
+    func deleteDevice(id: String) async throws {
+        if shouldThrowError { throw MockError.testError }
+        devices.removeAll { $0.id == id }
     }
 
     enum MockError: Error {

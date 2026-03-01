@@ -9,6 +9,9 @@ final class MockHealthKitService: HealthKitServiceProtocol {
     var latestWeight: Double?
     var latestBodyFat: Double?
     var weightHistory: [(date: Date, value: Double)] = []
+    var bodyFatHistory: [(date: Date, value: Double)] = []
+    var stepCounts: [(date: Date, value: Double)] = []
+    var sleepData: [(date: Date, value: Double)] = []
     var savedWeights: [(value: Double, date: Date)] = []
     var savedBodyFats: [(value: Double, date: Date)] = []
 
@@ -30,6 +33,21 @@ final class MockHealthKitService: HealthKitServiceProtocol {
     func fetchWeightHistory(days: Int) async throws -> [(date: Date, value: Double)] {
         if shouldThrowError { throw MockHealthKitError.testError }
         return weightHistory
+    }
+
+    func fetchBodyFatHistory(days: Int) async throws -> [(date: Date, value: Double)] {
+        if shouldThrowError { throw MockHealthKitError.testError }
+        return bodyFatHistory
+    }
+
+    func fetchStepCounts(days: Int) async throws -> [(date: Date, value: Double)] {
+        if shouldThrowError { throw MockHealthKitError.testError }
+        return stepCounts
+    }
+
+    func fetchSleepAnalysis(days: Int) async throws -> [(date: Date, value: Double)] {
+        if shouldThrowError { throw MockHealthKitError.testError }
+        return sleepData
     }
 
     func saveWeight(_ weightKg: Double, date: Date) async throws {

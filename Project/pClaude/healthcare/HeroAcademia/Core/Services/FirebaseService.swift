@@ -28,6 +28,12 @@ protocol FirebaseServiceProtocol {
     func fetchActiveGoals() async throws -> [Goal]
     func updateGoal(_ goal: Goal) async throws
     func deactivateGoal(id: String) async throws
+
+    // Devices
+    func addDevice(_ device: HealthDevice) async throws
+    func fetchDevices() async throws -> [HealthDevice]
+    func updateDevice(_ device: HealthDevice) async throws
+    func deleteDevice(id: String) async throws
 }
 
 // MARK: - Implementation
@@ -113,6 +119,10 @@ final class FirebaseService: FirebaseServiceProtocol {
 
     private func goalsCollection() throws -> CollectionReference {
         try userDocument().collection("goals")
+    }
+
+    private func devicesCollection() throws -> CollectionReference {
+        try userDocument().collection("devices")
     }
 
     // MARK: - Measurements
@@ -206,6 +216,34 @@ final class FirebaseService: FirebaseServiceProtocol {
     func deactivateGoal(id: String) async throws {
         let collection = try goalsCollection()
         try await collection.document(id).updateData(["isActive": false])
+    }
+
+    // MARK: - Devices
+
+    func addDevice(_ device: HealthDevice) async throws {
+        let collection = try devicesCollection()
+        try collection.addDocument(from: device)
+    }
+
+    func fetchDevices() async throws -> [HealthDevice] {
+        let collection = try devicesCollection()
+        let snapshot = try await collection.getDocuments()
+        return snapshot.documents.compactMap { doc in
+            try? doc.data(as: HealthDevice.self)
+        }
+    }
+
+    func updateDevice(_ device: HealthDevice) async throws {
+        guard let id = device.id else {
+            throw FirebaseServiceError.missingId
+        }
+        let collection = try devicesCollection()
+        try collection.document(id).setData(from: device)
+    }
+
+    func deleteDevice(id: String) async throws {
+        let collection = try devicesCollection()
+        try await collection.document(id).delete()
     }
 }
 
