@@ -7,6 +7,7 @@ enum MeasurementSource: String, Codable, CaseIterable {
     case fitbit
     case garmin
     case withings
+    case tanita
 
     var displayName: String {
         switch self {
@@ -16,6 +17,7 @@ enum MeasurementSource: String, Codable, CaseIterable {
         case .fitbit: return "Fitbit"
         case .garmin: return "Garmin"
         case .withings: return "Withings"
+        case .tanita: return "TANITA"
         }
     }
 }

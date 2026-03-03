@@ -6,6 +6,7 @@ enum DeviceType: String, Codable, CaseIterable, Identifiable {
     case fitbit
     case garmin
     case withings
+    case tanita
 
     var id: String { rawValue }
 
@@ -15,6 +16,7 @@ enum DeviceType: String, Codable, CaseIterable, Identifiable {
         case .fitbit: return "Fitbit"
         case .garmin: return "Garmin"
         case .withings: return "Withings"
+        case .tanita: return "TANITA"
         }
     }
 
@@ -24,6 +26,7 @@ enum DeviceType: String, Codable, CaseIterable, Identifiable {
         case .fitbit: return "applewatch"
         case .garmin: return "applewatch.side.right"
         case .withings: return "scalemass.fill"
+        case .tanita: return "scalemass"
         }
     }
 

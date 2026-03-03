@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DeviceListView: View {
     @Bindable var viewModel: DeviceViewModel
+    @State private var showingBLEExplorer = false
 
     var body: some View {
         List {
@@ -14,6 +15,25 @@ struct DeviceListView: View {
                                     Task { await viewModel.disconnectDevice(device) }
                                 }
                             }
+                    }
+                }
+            }
+
+            Section("開発ツール") {
+                Button {
+                    showingBLEExplorer = true
+                } label: {
+                    HStack {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                            .foregroundStyle(.purple)
+                            .frame(width: 30)
+                        VStack(alignment: .leading) {
+                            Text("BLEエクスプローラー")
+                                .font(.body)
+                            Text("BLEデバイスのサービス・特性を探索")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -51,6 +71,9 @@ struct DeviceListView: View {
         .navigationTitle("デバイス管理")
         .task {
             await viewModel.loadDevices()
+        }
+        .sheet(isPresented: $showingBLEExplorer) {
+            BLEExplorerView()
         }
         .sheet(isPresented: $viewModel.showingPairingSheet) {
             if let type = viewModel.selectedDeviceType {

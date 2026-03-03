@@ -48,6 +48,7 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_NSHealthShareUsageDescription: "体重・体脂肪率などの健康データを読み取るために使用します"
         INFOPLIST_KEY_NSHealthUpdateUsageDescription: "手動入力した体重・体脂肪率をHealthKitに保存するために使用します"
+        INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription: "TANITA体組成計と接続してデータを取得するために使用します"
     dependencies:
       - package: firebase-ios-sdk
         product: FirebaseAuth
@@ -56,6 +57,7 @@ targets:
       - sdk: HealthKit.framework
       - sdk: WatchConnectivity.framework
       - sdk: UserNotifications.framework
+      - sdk: CoreBluetooth.framework
 
   HeroAcademiaWatch:
     type: application

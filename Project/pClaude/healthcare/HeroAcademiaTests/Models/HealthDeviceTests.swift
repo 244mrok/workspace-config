@@ -40,6 +40,7 @@ struct HealthDeviceTests {
         #expect(DeviceType.fitbit.displayName == "Fitbit")
         #expect(DeviceType.garmin.displayName == "Garmin")
         #expect(DeviceType.withings.displayName == "Withings")
+        #expect(DeviceType.tanita.displayName == "TANITA")
     }
 
     @Test("DeviceType iconName is not empty")
@@ -59,7 +60,7 @@ struct HealthDeviceTests {
 
     @Test("DeviceType allCases has 4 types")
     func allCases() {
-        #expect(DeviceType.allCases.count == 4)
+        #expect(DeviceType.allCases.count == 5)
     }
 
     @Test("HealthDevice equality")

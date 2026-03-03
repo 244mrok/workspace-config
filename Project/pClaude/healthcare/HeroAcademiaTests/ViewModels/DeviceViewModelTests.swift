@@ -23,7 +23,7 @@ struct DeviceViewModelTests {
         let firebase = MockFirebaseService()
         let vm = DeviceViewModel(firebaseService: firebase)
 
-        #expect(vm.availableDeviceTypes.count == 4)
+        #expect(vm.availableDeviceTypes.count == 5)
     }
 
     @Test("loadDevices fetches from firebase")
