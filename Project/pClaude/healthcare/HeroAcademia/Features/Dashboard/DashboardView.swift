@@ -27,23 +27,29 @@ struct DashboardView: View {
                         tdeeCard(tdee: tdee)
                     }
 
-                    // Goal progress — one card per active goal
-                    ForEach(viewModel.activeGoals) { goal in
-                        GoalProgressCard(
-                            goal: goal,
-                            currentValue: viewModel.currentGoalValue(for: goal),
-                            projectedDate: viewModel.projectedDate(for: goal),
-                            onDeactivate: {
-                                Task {
-                                    await goalViewModel.deactivateGoal(goal)
-                                    await viewModel.loadAll()
-                                }
+                    // Goal progress — combined card
+                    if !viewModel.activeGoals.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Label("目標", systemImage: "target")
+                                    .font(.headline)
+                                Spacer()
                             }
-                        )
-                        .onTapGesture {
-                            goalViewModel.startEditing(goal)
-                            showingGoalEdit = true
+
+                            if let goal = viewModel.weightGoal {
+                                goalSection(for: goal)
+                            }
+
+                            if viewModel.weightGoal != nil && viewModel.bodyFatGoal != nil {
+                                Divider()
+                            }
+
+                            if let goal = viewModel.bodyFatGoal {
+                                goalSection(for: goal)
+                            }
                         }
+                        .padding()
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
                     }
 
                     // Show add button when there's room for another goal type
@@ -184,6 +190,60 @@ struct DashboardView: View {
         }
         .padding()
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func goalSection(for goal: Goal) -> some View {
+        let currentValue = viewModel.currentGoalValue(for: goal)
+        let progress: Double = {
+            guard let currentValue else { return 0 }
+            return goal.progressPercentage(currentValue: currentValue) / 100
+        }()
+        let projected = viewModel.projectedDate(for: goal)
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(goal.type.displayName)
+                    .font(.subheadline.bold())
+                Spacer()
+                Text("残り\(goal.daysRemaining)日")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let currentValue {
+                Text(String(format: "%.1f → %.1f %@", currentValue, goal.targetValue, goal.type.unit))
+                    .font(.subheadline)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                ProgressView(value: min(max(progress, 0), 1))
+                    .tint(progress >= 1.0 ? .green : .blue)
+                    .animation(.easeInOut(duration: 0.8), value: progress)
+
+                Text(String(format: "%.0f%%", min(progress * 100, 100)))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
+                    .animation(.default, value: progress)
+            }
+
+            if let projected {
+                HStack {
+                    Image(systemName: "calendar")
+                        .foregroundStyle(.secondary)
+                    Text("達成予測: ")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(projected, style: .date)
+                        .font(.caption.bold())
+                }
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            goalViewModel.startEditing(goal)
+            showingGoalEdit = true
+        }
     }
 
     private var streakBadge: some View {

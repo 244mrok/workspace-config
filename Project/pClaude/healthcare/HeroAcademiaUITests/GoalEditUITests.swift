@@ -101,8 +101,17 @@ final class GoalEditUITests: XCTestCase {
         )
         saveScreenshot("goal_05_goal_card_visible")
 
-        // --- Step 3: Tap goal card to open edit sheet ---
-        goalLabel.tap()
+        // --- Step 3: Tap goal section to open edit sheet ---
+        // In the combined card, tap the goal type label (e.g., "体重") not the card header
+        let weightSection = app.staticTexts["体重"]
+        let bodyFatSection = app.staticTexts["体脂肪率"]
+        if weightSection.exists {
+            weightSection.tap()
+        } else if bodyFatSection.exists {
+            bodyFatSection.tap()
+        } else {
+            XCTFail("No goal section found to tap")
+        }
         sleep(1)
         saveScreenshot("goal_06_edit_sheet")
 
