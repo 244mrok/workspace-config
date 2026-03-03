@@ -28,6 +28,15 @@ final class GoalViewModel {
         goals.first { $0.isActive }
     }
 
+    var activeGoalTypes: Set<GoalType> {
+        Set(goals.filter(\.isActive).map(\.type))
+    }
+
+    /// The goal type not yet used by an active goal, if any.
+    var availableType: GoalType? {
+        GoalType.allCases.first { !activeGoalTypes.contains($0) }
+    }
+
     // MARK: - Actions
 
     func loadGoals() async {

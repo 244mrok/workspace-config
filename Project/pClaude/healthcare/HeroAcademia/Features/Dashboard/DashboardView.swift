@@ -27,12 +27,12 @@ struct DashboardView: View {
                         tdeeCard(tdee: tdee)
                     }
 
-                    // Goal progress
-                    if let goal = viewModel.activeGoal {
+                    // Goal progress — one card per active goal
+                    ForEach(viewModel.activeGoals) { goal in
                         GoalProgressCard(
                             goal: goal,
-                            currentValue: viewModel.currentGoalValue,
-                            projectedDate: viewModel.projectedDate,
+                            currentValue: viewModel.currentGoalValue(for: goal),
+                            projectedDate: viewModel.projectedDate(for: goal),
                             onDeactivate: {
                                 Task {
                                     await goalViewModel.deactivateGoal(goal)
@@ -44,8 +44,16 @@ struct DashboardView: View {
                             goalViewModel.startEditing(goal)
                             showingGoalEdit = true
                         }
-                    } else {
+                    }
+
+                    // Show add button when there's room for another goal type
+                    if viewModel.activeGoals.count < GoalType.allCases.count {
                         Button {
+                            goalViewModel.resetForm()
+                            let existingTypes = Set(viewModel.activeGoals.map(\.type))
+                            if let missingType = GoalType.allCases.first(where: { !existingTypes.contains($0) }) {
+                                goalViewModel.inputType = missingType
+                            }
                             showingGoalSetting = true
                         } label: {
                             Label("目標を設定する", systemImage: "plus.circle")

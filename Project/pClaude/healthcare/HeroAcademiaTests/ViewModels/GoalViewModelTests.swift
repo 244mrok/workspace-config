@@ -90,4 +90,50 @@ struct GoalViewModelTests {
         #expect(vm.inputStartValue.isEmpty)
         #expect(vm.errorMessage == nil)
     }
+
+    // MARK: - Multiple Goals
+
+    @Test("activeGoalTypes includes all active goal types")
+    @MainActor
+    func activeGoalTypes() async {
+        let service = makeService()
+        service.goals = [
+            TestFixtures.goal(id: "g1", type: .weight),
+            TestFixtures.goal(id: "g2", type: .bodyFat)
+        ]
+
+        let vm = GoalViewModel(firebaseService: service)
+        await vm.loadGoals()
+
+        #expect(vm.activeGoalTypes.contains(.weight))
+        #expect(vm.activeGoalTypes.contains(.bodyFat))
+        #expect(vm.activeGoalTypes.count == 2)
+    }
+
+    @Test("availableType returns unused type")
+    @MainActor
+    func availableType() async {
+        let service = makeService()
+        service.goals = [TestFixtures.goal(id: "g1", type: .weight)]
+
+        let vm = GoalViewModel(firebaseService: service)
+        await vm.loadGoals()
+
+        #expect(vm.availableType == .bodyFat)
+    }
+
+    @Test("availableType nil when both types used")
+    @MainActor
+    func availableTypeNilWhenFull() async {
+        let service = makeService()
+        service.goals = [
+            TestFixtures.goal(id: "g1", type: .weight),
+            TestFixtures.goal(id: "g2", type: .bodyFat)
+        ]
+
+        let vm = GoalViewModel(firebaseService: service)
+        await vm.loadGoals()
+
+        #expect(vm.availableType == nil)
+    }
 }

@@ -35,12 +35,14 @@ final class GoalEditUITests: XCTestCase {
         saveScreenshot("goal_01_dashboard")
 
         // --- Step 1: Create a goal ---
-        // If there's already an active goal card, deactivate isn't easy via UI.
-        // Check if "目標を設定する" button exists; if not, goal already exists -> skip to edit.
+        // Check if "目標を設定する" button exists.
+        // With multi-goal support, this button shows when < 2 goals are active.
         let setGoalButton = app.staticTexts["目標を設定する"]
-        let goalExists = !setGoalButton.waitForExistence(timeout: 3)
+        let hasAddButton = setGoalButton.waitForExistence(timeout: 3)
+        // Check if a goal card already exists on the dashboard
+        let hasExistingGoal = app.staticTexts["目標"].exists
 
-        if !goalExists {
+        if hasAddButton {
             // Tap the "目標を設定する" button to open goal setting sheet
             setGoalButton.tap()
             sleep(1)
@@ -50,10 +52,14 @@ final class GoalEditUITests: XCTestCase {
             let createTitle = app.navigationBars["目標を設定"]
             XCTAssertTrue(createTitle.waitForExistence(timeout: 3), "Title should be '目標を設定' in create mode")
 
-            // Verify type picker is enabled (not disabled)
+            // Type picker: enabled when no goals exist, disabled when adding a second goal type
             let weightSegment = app.buttons["体重"]
             XCTAssertTrue(weightSegment.exists)
-            XCTAssertTrue(weightSegment.isEnabled, "Type picker should be enabled in create mode")
+            if hasExistingGoal {
+                XCTAssertFalse(weightSegment.isEnabled, "Type picker should be disabled when one goal type already exists")
+            } else {
+                XCTAssertTrue(weightSegment.isEnabled, "Type picker should be enabled with no existing goals")
+            }
 
             // Fill in 現在値 (first text field with placeholder "0.0")
             let textFields = app.textFields.matching(NSPredicate(format: "placeholderValue == '0.0'"))
@@ -84,7 +90,7 @@ final class GoalEditUITests: XCTestCase {
             sleep(3)
             saveScreenshot("goal_04_after_create")
         } else {
-            saveScreenshot("goal_02_existing_goal")
+            saveScreenshot("goal_02_all_goals_set")
         }
 
         // --- Step 2: Verify goal card appears on dashboard ---

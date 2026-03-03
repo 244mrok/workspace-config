@@ -4,7 +4,7 @@ import Foundation
 @Observable
 final class DashboardViewModel {
     var measurements: [BodyMeasurement] = []
-    var activeGoal: Goal?
+    var activeGoals: [Goal] = []
     var userProfile: UserProfile?
     var isLoading = false
     var errorMessage: String?
@@ -28,6 +28,12 @@ final class DashboardViewModel {
     }
 
     // MARK: - Computed
+
+    /// Backward compatibility — first active goal (used by WatchData)
+    var activeGoal: Goal? { activeGoals.first }
+
+    var weightGoal: Goal? { activeGoals.first { $0.type == .weight } }
+    var bodyFatGoal: Goal? { activeGoals.first { $0.type == .bodyFat } }
 
     var latestMeasurement: BodyMeasurement? {
         measurements.first
@@ -63,8 +69,9 @@ final class DashboardViewModel {
         return GoalEngine.tdee(bmr: bmr, activityLevel: .light)
     }
 
-    var goalProgress: Double? {
-        guard let goal = activeGoal else { return nil }
+    // MARK: - Per-goal helpers
+
+    func goalProgress(for goal: Goal) -> Double? {
         switch goal.type {
         case .weight:
             guard let w = latestWeight else { return nil }
@@ -75,17 +82,31 @@ final class DashboardViewModel {
         }
     }
 
-    var currentGoalValue: Double? {
-        guard let goal = activeGoal else { return nil }
+    func currentGoalValue(for goal: Goal) -> Double? {
         switch goal.type {
         case .weight: return latestWeight
         case .bodyFat: return latestBodyFat
         }
     }
 
+    func projectedDate(for goal: Goal) -> Date? {
+        GoalEngine.projectedCompletionDate(goal: goal, recentMeasurements: measurements)
+    }
+
+    /// Backward compatibility — uses first active goal
+    var goalProgress: Double? {
+        guard let goal = activeGoal else { return nil }
+        return goalProgress(for: goal)
+    }
+
+    var currentGoalValue: Double? {
+        guard let goal = activeGoal else { return nil }
+        return currentGoalValue(for: goal)
+    }
+
     var projectedDate: Date? {
         guard let goal = activeGoal else { return nil }
-        return GoalEngine.projectedCompletionDate(goal: goal, recentMeasurements: measurements)
+        return projectedDate(for: goal)
     }
 
     var streak: Int {
@@ -99,19 +120,26 @@ final class DashboardViewModel {
         errorMessage = nil
 
         do {
-            let previousGoalValue = currentGoalValue
+            // Capture previous values per goal type for milestone checks
+            var previousValues: [GoalType: Double] = [:]
+            for goal in activeGoals {
+                if let val = currentGoalValue(for: goal) {
+                    previousValues[goal.type] = val
+                }
+            }
 
             async let fetchedMeasurements = firebaseService.fetchMeasurements(limit: 30)
             async let fetchedGoals = firebaseService.fetchActiveGoals()
             async let fetchedProfile = firebaseService.fetchUserProfile()
 
             measurements = try await fetchedMeasurements
-            let goals = try await fetchedGoals
-            activeGoal = goals.first
+            activeGoals = try await fetchedGoals
             userProfile = try await fetchedProfile
 
-            // Check milestone notifications
-            await checkMilestone(previousValue: previousGoalValue)
+            // Check milestone notifications for each goal
+            for goal in activeGoals {
+                await checkMilestone(for: goal, previousValue: previousValues[goal.type])
+            }
 
             // Check streak notifications
             await checkStreak()
@@ -125,9 +153,8 @@ final class DashboardViewModel {
         isLoading = false
     }
 
-    private func checkMilestone(previousValue: Double?) async {
-        guard let goal = activeGoal,
-              let current = currentGoalValue,
+    private func checkMilestone(for goal: Goal, previousValue: Double?) async {
+        guard let current = currentGoalValue(for: goal),
               let previous = previousValue,
               let notificationService else { return }
 
@@ -154,18 +181,27 @@ final class DashboardViewModel {
     private func checkBadges() async {
         do {
             earnedBadges = try await firebaseService.fetchBadges()
-            let newBadges = BadgeService.checkNewBadges(
-                streak: streak,
-                totalMeasurements: measurements.count,
-                goal: activeGoal,
-                goalProgress: goalProgress,
-                existing: earnedBadges
-            )
-            for badge in newBadges {
+            var allNewBadges: [Badge] = []
+
+            // Check per-goal badges (and non-goal badges on first iteration)
+            let goalsToCheck: [Goal?] = activeGoals.isEmpty ? [nil] : activeGoals.map { $0 as Goal? }
+            for goal in goalsToCheck {
+                let progress = goal.flatMap { goalProgress(for: $0) }
+                let newBadges = BadgeService.checkNewBadges(
+                    streak: streak,
+                    totalMeasurements: measurements.count,
+                    goal: goal,
+                    goalProgress: progress,
+                    existing: earnedBadges + allNewBadges
+                )
+                allNewBadges.append(contentsOf: newBadges)
+            }
+
+            for badge in allNewBadges {
                 try await firebaseService.addBadge(badge)
             }
-            newlyEarnedBadges = newBadges
-            if !newBadges.isEmpty {
+            newlyEarnedBadges = allNewBadges
+            if !allNewBadges.isEmpty {
                 earnedBadges = try await firebaseService.fetchBadges()
             }
         } catch {

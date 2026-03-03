@@ -27,6 +27,7 @@ struct DashboardViewModelTests {
         #expect(vm.measurements.count == 1)
         #expect(vm.latestWeight == 72.0)
         #expect(vm.latestBodyFat == 18.0)
+        #expect(vm.activeGoals.count == 1)
         #expect(vm.activeGoal != nil)
         #expect(vm.userProfile != nil)
     }
@@ -101,6 +102,7 @@ struct DashboardViewModelTests {
 
         #expect(vm.measurements.isEmpty)
         #expect(vm.latestWeight == nil)
+        #expect(vm.activeGoals.isEmpty)
         #expect(vm.activeGoal == nil)
         #expect(vm.calculatedBMI == nil)
         #expect(vm.streak == 0)
@@ -206,5 +208,67 @@ struct DashboardViewModelTests {
         await vm.loadAll()
 
         #expect(vm.errorMessage != nil)
+    }
+
+    // MARK: - Multiple Goals
+
+    @Test("Both weight and body fat goals active simultaneously")
+    @MainActor
+    func multipleActiveGoals() async {
+        let service = makeService()
+        service.goals = [
+            TestFixtures.goal(id: "g-weight", type: .weight, targetValue: 65.0, startValue: 75.0),
+            TestFixtures.goal(id: "g-fat", type: .bodyFat, targetValue: 15.0, startValue: 25.0)
+        ]
+        service.measurements = [
+            TestFixtures.measurement(weight: 70.0, bodyFatPercentage: 20.0)
+        ]
+
+        let vm = DashboardViewModel(firebaseService: service)
+        await vm.loadAll()
+
+        #expect(vm.activeGoals.count == 2)
+        #expect(vm.weightGoal?.id == "g-weight")
+        #expect(vm.bodyFatGoal?.id == "g-fat")
+    }
+
+    @Test("weightGoal returns only weight type, bodyFatGoal returns only body fat type")
+    @MainActor
+    func goalTypeHelpers() async {
+        let service = makeService()
+        service.goals = [
+            TestFixtures.goal(id: "g-fat", type: .bodyFat, targetValue: 15.0, startValue: 25.0),
+            TestFixtures.goal(id: "g-weight", type: .weight, targetValue: 65.0, startValue: 75.0)
+        ]
+        service.measurements = [TestFixtures.measurement(weight: 70.0, bodyFatPercentage: 20.0)]
+
+        let vm = DashboardViewModel(firebaseService: service)
+        await vm.loadAll()
+
+        #expect(vm.weightGoal?.type == .weight)
+        #expect(vm.bodyFatGoal?.type == .bodyFat)
+        // activeGoal is backward compat — returns first in array
+        #expect(vm.activeGoal?.id == "g-fat")
+    }
+
+    @Test("Per-goal progress calculation")
+    @MainActor
+    func perGoalProgress() async {
+        let service = makeService()
+        // Weight: 75 → 65 (10kg loss), current 70 → 50%
+        // Body fat: 25 → 15 (10% loss), current 20 → 50%
+        service.goals = [
+            TestFixtures.goal(id: "g-weight", type: .weight, targetValue: 65.0, startValue: 75.0),
+            TestFixtures.goal(id: "g-fat", type: .bodyFat, targetValue: 15.0, startValue: 25.0)
+        ]
+        service.measurements = [TestFixtures.measurement(weight: 70.0, bodyFatPercentage: 20.0)]
+
+        let vm = DashboardViewModel(firebaseService: service)
+        await vm.loadAll()
+
+        let weightProgress = vm.goalProgress(for: vm.weightGoal!)
+        let fatProgress = vm.goalProgress(for: vm.bodyFatGoal!)
+        #expect(abs(weightProgress! - 50.0) < 0.1)
+        #expect(abs(fatProgress! - 50.0) < 0.1)
     }
 }

@@ -23,7 +23,7 @@ struct GoalSettingView: View {
                         }
                     }
                     .pickerStyle(.segmented)
-                    .disabled(isEditMode)
+                    .disabled(isEditMode || viewModel.activeGoalTypes.count >= GoalType.allCases.count - 1)
                 }
 
                 Section("目標値") {
